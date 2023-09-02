@@ -1,0 +1,23 @@
+GlobalItemCooldown: false
+ItemDisplayCooldown: 30
+quality:
+  list: 
+  - 劣质
+  - 普通
+  - 优质
+  - 完美
+  - 传奇
+  p:
+  - 0.3
+  - 0.4
+  - 0.15
+  - 0.04
+  - 0.01
+  m:
+  - 0.8
+  - 1
+  - 1.2
+  - 1.5
+  - 2
+RestrictedWorlds:
+  - zc
