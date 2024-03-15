@@ -1,0 +1,680 @@
+package cn.ankele.plugin.utils;
+
+import cn.ankele.plugin.MagicItem;
+import cn.ankele.plugin.bean.Award;
+import cn.ankele.plugin.bean.ItemBean;
+import cn.nukkit.Player;
+import cn.nukkit.command.Command;
+import cn.nukkit.command.CommandSender;
+import cn.nukkit.command.ConsoleCommandSender;
+import cn.nukkit.command.data.CommandParamType;
+import cn.nukkit.command.data.CommandParameter;
+import cn.nukkit.inventory.Inventory;
+import cn.nukkit.inventory.PlayerInventory;
+import cn.nukkit.item.Item;
+import cn.nukkit.item.enchantment.Enchantment;
+import cn.nukkit.lang.LangCode;
+import cn.nukkit.lang.PluginI18n;
+import cn.nukkit.nbt.tag.CompoundTag;
+import cn.nukkit.nbt.tag.DoubleTag;
+import cn.nukkit.nbt.tag.ListTag;
+import cn.nukkit.utils.Config;
+import cn.nukkit.utils.ConfigSection;
+
+import java.text.DecimalFormat;
+import java.util.*;
+
+import cn.nukkit.utils.TextFormat;
+import me.onebone.economyapi.EconomyAPI;
+
+public class BaseCommand extends Command {
+    protected MagicItem api;
+    protected PluginI18n i18n;
+    private String pluginName = "§e[ §cMagicItem§e ]§r";
+    private HashMap<String, Long> useTime = new HashMap<>();
+
+    public BaseCommand(String name) {
+        super(name, "魔法物品");
+
+        this.setPermission("magicitem.command");
+        this.getCommandParameters().clear();
+
+        this.getCommandParameters().put("add", new CommandParameter[]{
+                CommandParameter.newEnum("add", false, new String[]{"add"}),
+                CommandParameter.newType("itemName", false, CommandParamType.STRING),
+                CommandParameter.newType("itemId", false, CommandParamType.STRING)
+        });
+
+        this.getCommandParameters().put("give", new CommandParameter[]{
+                CommandParameter.newEnum("give", false, new String[]{"give"}),
+                CommandParameter.newType("player", true, CommandParamType.TARGET),
+                CommandParameter.newType("itemName", false, CommandParamType.STRING),
+                CommandParameter.newType("count", true, CommandParamType.INT)
+        });
+
+        this.getCommandParameters().put("syn", new CommandParameter[]{
+                CommandParameter.newEnum("syn", false, new String[]{"syn"}),
+                CommandParameter.newEnum("operation", false, new String[]{"use", "create"}),
+                CommandParameter.newType("synName", false, CommandParamType.STRING)
+        });
+
+        this.getCommandParameters().put("for", new CommandParameter[]{
+                CommandParameter.newEnum("for", false, new String[]{"for"}),
+                CommandParameter.newEnum("operation", false, new String[]{"use", "create"}),
+                CommandParameter.newType("forName", false, CommandParamType.STRING)
+        });
+
+        this.getCommandParameters().put("save", new CommandParameter[]{
+                CommandParameter.newEnum("save", false, new String[]{"save"}),
+                CommandParameter.newType("itemName", false, CommandParamType.STRING)
+        });
+
+        this.getCommandParameters().put("show", new CommandParameter[]{
+                CommandParameter.newEnum("show", false, new String[]{"show"})
+        });
+
+        this.getCommandParameters().put("reload", new CommandParameter[]{
+                CommandParameter.newEnum("reload", false, new String[]{"reload"})
+        });
+
+        this.getCommandParameters().put("sell", new CommandParameter[]{
+                CommandParameter.newEnum("sell", false, new String[]{"sell"})
+        });
+
+        api = MagicItem.getInstance();
+        i18n = MagicItem.getI18n();
+    }
+
+    @Override
+    public boolean execute(CommandSender sender, String label, String[] args) {
+        LangCode langCode = sender.isPlayer() ? ((Player)sender).getLanguageCode() : LangCode.zh_CN;
+
+        if (args.length < 1) {
+            sender.sendMessage("缺少参数");
+            return false;
+        }
+        switch (args[0]) {
+            case "add" -> {
+                if (!sender.hasPermission("magicitem.command.op")) {
+                    sender.sendMessage(i18n.tr(langCode, "magicitem.usage.permission"));
+                    return false;
+                }
+                String itemName = args[1];
+                String itemId = args[2];
+
+                if (Tools.isExits(MagicItem.getInstance().getItemFile(), itemName)) {
+                    sender.sendMessage(TextFormat.RED+"§c这个物品已存在！");
+                    return false;
+                }
+
+                ConfigSection data = new ConfigSection(new LinkedHashMap());
+                data.set("物品ID", itemId);
+                data.set("物品Meta", 0);
+                data.set("名字", "魔法物品");
+                data.set("获得药水", "1:1:10@2:1:2");
+                data.set("群体药水", "1:1:10@2:1:2");
+                data.set("药水范围", 5);
+                data.set("群体药水作用对象", 0);
+                data.set("使用雷击", false);
+                data.set("OP指令", "say {player}");
+                data.set("以玩家身份执行", "me test");
+                data.set("附魔", "0:1");
+                data.set("显示", "第一行{换行}第二行");
+                data.set("使用消耗", false);
+                data.set("回收价格", 0);
+                data.set("职业限制", "无");
+                data.set("冷却时间", 0);
+                data.set("获得提示", "恭喜获得魔法物品");
+                data.set("全服提示", "恭喜 {player} 获得魔法物品");
+                data.set("属性.攻击力", Arrays.asList(3, 5));
+                data.set("属性.防御力", Arrays.asList(1, 1));
+                data.set("魔素.风", 2);
+                data.set("魔素.同谐", 1);
+                Config config = new Config(MagicItem.getInstance().getDataFolder().toString() + "/items/" + itemName.toLowerCase() + ".yml", 2);
+                config.setAll(data);
+                config.save();
+                sender.sendMessage("§a添加成功！");
+                return true;
+            }
+            case "give" -> {
+                Player player = api.getServer().getPlayer(args[1]);
+                if (!player.isValid()) {
+                    sender.sendMessage("没有匹配的目标");
+                    return false;
+                }
+
+                if (!sender.hasPermission("magicitem.command.op")) {
+                    sender.sendMessage(i18n.tr(langCode,"magicitem.usage.permission"));
+                    return false;
+                }
+
+                String itemName = args[2];
+                int count = args.length > 3 ? Integer.parseInt(args[3]) : 1;
+                ItemBean itemBean = null;
+                Item item = null;
+
+                LinkedHashMap<String, Object> others = MagicItem.getOthers();
+                if (Tools.isExits(MagicItem.getInstance().getItemFile(), itemName)) {
+                    Config config2 = new Config();
+                    config2.load(MagicItem.getInstance().getItemFile() + "/" + itemName.toLowerCase() + ".yml");
+                    itemBean = new ItemBean(itemName, config2);
+                    item = createItem(itemBean);
+                } else if (others.containsKey(itemName)) {
+                    item = createSaveItems((String) others.get(itemName));
+                } else {
+                    sender.sendMessage("§c无法给予，物品§r "+itemName+"§r§c 不存在！");
+                    return false;
+                }
+
+                item.setCount(count);
+
+                if (itemBean != null && !itemBean.getGetHints().isEmpty()) {
+                    player.sendPopup(itemBean.getGetHints());
+                    player.sendMessage(itemBean.getGetHints());
+                }
+                if (itemBean != null && !itemBean.getBroadCast().isEmpty()) {
+                    String msg = itemBean.getBroadCast();
+                    MagicItem.getInstance().getServer().broadcastMessage(msg.replace("{player}", player.getName()));
+                    for (Map.Entry<UUID, Player> entry : MagicItem.getInstance().getServer().getOnlinePlayers().entrySet()) {
+                        entry.getValue().sendPopup("", msg.replace("{player}", player.getName()));
+                    }
+                }
+                item.setCount(count);
+                PlayerInventory inventory = player.getInventory();
+                inventory.addItem(new Item[]{item});
+                return true;
+            }
+            case "syn" -> {
+                String operation = args[1];
+                String synName = args[2];
+
+                if (Objects.equals(operation, "create")) {
+                    if (!sender.hasPermission("magicitem.command.op")) {
+                        sender.sendMessage("magicitem.usage.permission");
+                        return false;
+                    }
+
+                    ConfigSection data2 = new ConfigSection(new LinkedHashMap());
+                    data2.set("需求", List.of("test:1", "test2:2"));
+                    data2.set("执行指令", List.of("give {player} 264 66", "op {player}"));
+                    data2.set("需求金币", 0);
+                    if (!Tools.isExits(MagicItem.getInstance().getSynFile(), synName)) {
+                        Config config3 = new Config(MagicItem.getInstance().getDataFolder().toString() + "/syns/" + synName.toLowerCase() + ".yml", 2);
+                        config3.setAll(data2);
+                        config3.save();
+                        sender.sendMessage("§a添加成功！");
+                        return true;
+                    } else {
+                        sender.sendMessage("§6这个合成已存在！");
+                        return false;
+                    }
+                } else if (Objects.equals(operation, "use")) {
+                    if (!sender.isPlayer()) {
+                        sender.sendMessage(TextFormat.RED+"仅限玩家执行");
+                        return false;
+                    }
+                    if (!Tools.isExits(MagicItem.getInstance().getSynFile(), synName)) {
+                        sender.sendMessage("§c这个合成不存在！");
+                        return false;
+                    }
+                    Player player2 = ((Player) sender).getPlayer();
+                    Config config22 = new Config();
+                    config22.load(MagicItem.getInstance().getSynFile() + "/" + synName.toLowerCase() + ".yml");
+                    double money = (double) config22.getInt("需求金币");
+                    LinkedHashMap<String, ItemBean> items = MagicItem.getItemsMap();
+                    List<Item> needItems = new ArrayList<>();
+
+                    List<String> needs = config22.getStringList("需求");
+                    List<String> cmds = config22.getStringList("执行指令");
+                    LinkedHashMap<String, Object> others = MagicItem.getOthers();
+                    for (String need : needs) {
+                        String[] needArgs = need.split(":");
+                        String name = needArgs[0];
+                        int count = Integer.parseInt(needArgs[1]);
+                        if (name.startsWith("[RcRPG]")) { // 判断是不是 RcRPG 物品
+                            String[] nameTag = name.substring(7).split(";");
+                            if (nameTag.length == 1 || nameTag.length > 2) {
+                                sender.sendMessage("§e本合成方案有误，请联系管理员§r" + name);
+                            }
+
+                            PlayerInventory bag = player2.getInventory();
+                            boolean hasItem = false;
+                            for (int num = 0; num < bag.getSize(); num++) {
+                                Item bagItem = bag.getItem(num).clone();
+                                if (bagItem.isNull()) continue;// 物品是 AIR
+                                CompoundTag itemtag = bagItem.getNamedTag();
+                                if (itemtag == null) continue;// 物品沒有 NBT
+                                String type = itemtag.getString("type");
+                                if (type.isEmpty()) continue;// type 為 null
+                                String yamlName = itemtag.getString("name");// yamlName 值沒有 .yml 后綴
+                                if (yamlName.isEmpty()) continue;// yamlName 為 null
+                                if (!type.equals(nameTag[0])) continue;
+                                if (!yamlName.equals(nameTag[1])) continue;
+
+                                hasItem = true;
+                                bagItem.setCount(count);
+                                needItems.add(bagItem);
+                                break;
+                            }
+                            if (!hasItem) {
+                                sender.sendMessage("§c你的背包中没有装备：§r" + name);
+                                return false;
+                            }
+                        } else {
+                            if (items.containsKey(name)) {
+                                Item item2 = createItem(items.get(name));
+                                item2.setCount(count);
+                                needItems.add(item2);
+                            } else if (others.containsKey(name)) {
+                                Item item3 = createSaveItems((String) others.get(name));
+                                item3.setCount(count);
+                                needItems.add(item3);
+                            } else {
+                                sender.sendMessage("§c检测到合成需求有不存在的物品：§r" + name);
+                                return false;
+                            }
+                        }
+                    }
+                    String[] tipMegs = {config22.getString("失败提示", ""), config22.getString("成功提示", "")};
+                    removeItem(player2, needItems, cmds, money, tipMegs);
+                    return true;
+                }
+                sender.sendMessage("§c/mi syn 中不存在这个操作");
+                return false;
+            }
+            case "for" -> {
+                String operation = args[1];
+                String forName = args[2];
+
+                if (Objects.equals(operation, "create")) {
+                    if (!sender.hasPermission("magicitem.command.op")) {
+                        sender.sendMessage(i18n.tr(langCode, "magicitem.usage.permission"));
+                        return false;
+                    }
+
+                    if (Tools.isExits(MagicItem.getInstance().getForgingFile(), forName)) {
+                        sender.sendMessage("§6这个锻造已存在！");
+                        return false;
+                    }
+
+                    ConfigSection data3 = new ConfigSection(new LinkedHashMap());
+                    data3.set("需求", List.of("test:1", "test2:2"));
+                    data3.set("执行指令", List.of("give {player} 264 66", "op {player}"));
+                    data3.set("需求金币", 0);
+                    Config config4 = new Config(MagicItem.getInstance().getDataFolder().toString() + "/forging/" + forName.toLowerCase() + ".yml", 2);
+                    config4.setAll(data3);
+                    config4.save();
+                    sender.sendMessage("§a添加成功！");
+                    return true;
+                } else if (Objects.equals(operation, "use")) {
+                    if (!sender.isPlayer()) {
+                        sender.sendMessage("仅限玩家执行");
+                        return false;
+                    }
+
+                    if (!Tools.isExits(MagicItem.getInstance().getForgingFile(), forName)) {
+                        sender.sendMessage("§c这个锻造不存在！");
+                        return false;
+                    }
+                    Player player3 = ((Player) sender).getPlayer();
+                    Config config23 = new Config();
+                    config23.load(MagicItem.getInstance().getForgingFile() + "/" + forName.toLowerCase() + ".yml");
+                    double money2 = (double) config23.getInt("需求金币");
+
+                    LinkedHashMap<String, ItemBean> itemsMap = MagicItem.getItemsMap();
+                    List<Item> needItems = new ArrayList<>();
+                    String[] needArray = config23.getString("需求").split("@");
+                    //String[] msgs = config23.getString("执行命令").split("@");
+                    ConfigSection cmdValue = config23.getSection("执行命令");
+                    LinkedHashMap<String, Object> others2 = MagicItem.getOthers();
+                    for (String needArray2 : needArray) {
+                        String itemName = needArray2.split(":")[0];
+                        int count = Integer.parseInt(needArray2.split(":")[1]);
+                        if (itemsMap.containsKey(itemName)) {
+                            Item item4 = createItem(itemsMap.get(itemName));
+                            item4.setCount(count);
+                            needItems.add(item4);
+                        } else if (others2.containsKey(itemName)) {
+                            Item item5 = createSaveItems((String) others2.get(itemName));
+                            item5.setCount(count);
+                            needItems.add(item5);
+                        } else {
+                            sender.sendMessage("§c检测到锻造合成需求有不存在的物品：§r" + itemName);
+                            return false;
+                        }
+                    }
+                    //removeItemToForging(player3, needItems2, msgs, money2);
+                    removeItemToForging(player3, needItems, cmdValue, money2);
+
+                    return true;
+                }
+
+                sender.sendMessage("§c/mi for 中不存在这个操作");
+                return false;
+            }
+            case "save" -> {
+                if (!sender.hasPermission("magicitem.command.op")) {
+                    sender.sendMessage(i18n.tr(langCode, "magicitem.usage.permission"));
+                    return false;
+                }
+
+                if (!sender.isPlayer()) {
+                    sender.sendMessage(TextFormat.RED+"仅限玩家执行");
+                    return false;
+                }
+
+//                String itemName = args[1];
+//                Item item6 = ((Player) sender).getInventory().getItemInHand();
+//                if (item6 != null) {
+//                    saveItem(item6, itemName);
+//                    log.addSuccess("§a保存成功！").output();
+//                    return true;
+//                } else {
+//                    log.addError("§6手上没有物品哦！").output();
+//                    return false;
+//                }
+                return true;
+            }
+            case "show" -> {
+                if (!sender.isPlayer()) {
+                    sender.sendMessage(TextFormat.RED+"仅限玩家执行");
+                    return false;
+                }
+                Player player = (Player) sender;
+
+                long time = System.currentTimeMillis();
+                Config mainConfig = MagicItem.getInstance().getMainConfig();
+                Item showItem = player.getInventory().getItemInHand();
+                if (!showItem.hasCompoundTag()) {
+                    MagicItem.getInstance().getServer().broadcastMessage("§e[§a物品展示§e] §6玩家 §a" + player.getName() + " §6手里拿的是 §r" + showItem.getName());
+                    return true;
+                }
+                if (!this.useTime.containsKey(player.getName())) {
+                    this.useTime.put(player.getName(), time);
+                } else if ((time - this.useTime.get(player.getName())) / 1000 < ((long) mainConfig.getInt("ItemDisplayCooldown"))) {
+                    long s = ((long) mainConfig.getInt("ItemDisplayCooldown")) - ((time - this.useTime.get(player.getName())) / 1000);
+                    player.sendMessage("§e[§a物品展示§e]§r§a冷却中...剩余" + s + "秒");
+                    return false;
+                } else {
+                    this.useTime.put(player.getName(), time);
+                }
+                MagicItem.getInstance().getServer().broadcastMessage("§e[§a物品展示§e] §6玩家 §a" + player.getName() + " §6手里拿的是 §r" + (showItem.getCustomName().isEmpty() ? showItem.getName() : showItem.getCustomName()));
+                return true;
+            }
+            case "sell" -> {
+                if (!sender.isPlayer()) {
+                    sender.sendMessage(TextFormat.RED+"仅限玩家执行");
+                    return false;
+                }
+                Player player = (Player) sender;
+                PlayerInventory bag = player.getInventory();
+                double total = 0.0d;
+                for (int num = 0; num < bag.getSize(); num++) {
+                    Item bagItem = bag.getItem(num);
+                    if (!bagItem.hasCompoundTag()) {
+                        continue;
+                    }
+                    if (MagicItem.getItemsMap().containsValue(bagItem)) {
+                        double sell = bagItem.getNamedTag().getDouble("sell");
+                        if (sell != 0.0d) {
+                            bag.removeItem(new Item[]{bagItem});
+                            EconomyAPI.getInstance().addMoney(player, ((double) bagItem.count) * sell);
+                            total += ((double) bagItem.count) * sell;
+                        }
+                    }
+                }
+                player.sendMessage("§a回收完毕，获得 " + total + "元");
+                return true;
+            }
+            case "reload" -> {
+                MagicItem.instance.loadItems();
+                MagicItem.instance.initOther();
+                sender.sendMessage(TextFormat.GREEN+"配置文件已重新读取");
+                return true;
+            }
+            default -> {
+                return false;
+            }
+        }
+    }
+
+    public static Item createItem(ItemBean itemBean) {
+        Item item = Item.fromString(itemBean.getItemId());
+        item.setDamage(itemBean.getItemMeta());
+        try {
+            if (item.getId() == 0) throw new Exception("无法获取物品！ID为" + itemBean.getItemId());
+            item.setDamage(itemBean.getItemMeta());
+        } catch (Throwable th) {
+            MagicItem.getInstance().getLogger().info("出问题的是:" + itemBean.getYamlName());
+        }
+        item.getNamespaceId();
+        CompoundTag tag = new CompoundTag();
+        tag.putCompound("display", new CompoundTag("display").putString("Name", itemBean.getName()));
+        tag.putString("yamlName", itemBean.getYamlName());
+        tag.putString("effect", itemBean.getEffect());
+        tag.putString("groupEffect", itemBean.getGroupEffect());
+        tag.putInt("distance", itemBean.getDistance());
+        tag.putInt("actionEntity", itemBean.getActionEntity());
+        tag.putBoolean("thunder", itemBean.isThunder());
+        tag.putString("opCmd", itemBean.getOpCmd());
+        tag.putString("pCmd", itemBean.getPlayerCmd());
+        tag.putString("getHints", itemBean.getGetHints());
+        tag.putBoolean("isCon", itemBean.isCon());
+        tag.putString("job", itemBean.getJob());
+        tag.putInt("coolTime", itemBean.getCoolTime());
+        tag.putString("broadCast", itemBean.getBroadCast());
+        tag.putDouble("sell", itemBean.getSell());
+
+        item.setNamedTag(tag);
+
+        List<String> loreList = new ArrayList<>();
+        double quality = 0.0;
+        if (!itemBean.attr.isEmpty()) {
+            quality = selectQuality(loreList);
+        }
+        loreList.add(itemBean.getLore().replaceAll("\\{换行}", String.valueOf('\n')));
+        if (!itemBean.attr.isEmpty()) {
+            loreList.add("§4一一一一一一一一一一");
+            tag.putCompound("attr", handleAttr(quality, itemBean.attr, loreList));
+        }
+
+        if (!itemBean.mana.isEmpty()) {
+            loreList.add("§4一一一一一一一一一一");
+            tag.putCompound("mana", handleMana(itemBean.mana, loreList));
+        }
+
+        item.setNamedTag(tag);
+
+        item.setLore(String.join("\n", loreList));
+        if (!itemBean.getEnch().isEmpty()) {
+            for (Enchantment enchantment : Tools.getEnchant(itemBean.getEnch())) {
+                item.addEnchantment(enchantment);
+            }
+        }
+        return item;
+    }
+
+    private static CompoundTag handleMana(Map<String, Object> mana, List<String> loreList) {
+        CompoundTag compoundTag = new CompoundTag();
+
+        for (Map.Entry<String, Object> entry : mana.entrySet()) {
+            String manaibuteName = entry.getKey();
+            Object manaibuteValue = entry.getValue();
+
+            if (manaibuteValue instanceof Integer) {
+                int value = (int) manaibuteValue;
+                compoundTag.putInt(manaibuteName, value);
+                loreList.add("§a" + manaibuteName + ": " + value);// §7mana: 123
+            }
+        }
+        return compoundTag;
+    }
+
+    private static double selectQuality(List<String> loreList) {
+        Config c = MagicItem.getInstance().getMainConfig();
+        List<Double> qualityList = c.getDoubleList("quality.m");
+        List<Double> probabilityList = c.getDoubleList("quality.p");
+
+        // 随机生成一个0到1之间的随机数
+        double randomValue = new Random().nextDouble();
+
+        double cumulativeProbability = 0.0;
+        for (int i = 0; i < qualityList.size(); i++) {
+            cumulativeProbability += probabilityList.get(i);
+
+            if (randomValue < cumulativeProbability) {
+                loreList.add("§r§f[§b素材§f]§r            " + c.getStringList("quality.list").get(i));
+                return qualityList.get(i);
+            }
+        }
+
+        // 如果没有匹配的品质，则返回默认品质或者处理其他逻辑
+        return 1;
+    }
+
+    private static CompoundTag handleAttr(double quality, Map<String, Object> attr, List<String> loreList) {
+        CompoundTag compoundTag = new CompoundTag();
+        DecimalFormat decimalFormat = new DecimalFormat("#.####");
+
+        for (Map.Entry<String, Object> entry : attr.entrySet()) {
+            String attributeName = entry.getKey();
+            Object attributeValue = entry.getValue();
+
+            if (attributeValue instanceof List<?>) {
+                List<Double> attributeValues = (List<Double>) attributeValue;
+                ListTag<DoubleTag> modifiedValues = new ListTag<>();
+
+                for (Double value : attributeValues) {
+                    // 将属性值乘以品质因子
+                    double modifiedValue = value * quality;
+                    String formattedValue = (value < 1) ? decimalFormat.format(modifiedValue) : String.valueOf((int) modifiedValue);
+                    modifiedValues.add(new DoubleTag("", Double.parseDouble(formattedValue)));
+                }
+                if (modifiedValues.size() == 1) {
+                    Double num = modifiedValues.get(0).getData();
+                    if (num < 1 && num > 0) {
+                        loreList.add("§7" + attributeName + ": " + num + "%%");// §7attrName: 123%%
+                    } else {
+                        loreList.add("§7" + attributeName + ": " + (int) Math.floor(num));// §7attrName: 123
+                    }
+                } else {
+                    loreList.add("§7" + attributeName + ": " + (int) Math.floor(modifiedValues.get(0).getData()) + "-" + (int) Math.floor(modifiedValues.get(1).getData()));// §7attrName: 123-321
+                }
+
+                // 将修改后的属性值添加到CompoundTag
+                compoundTag.putList(attributeName, modifiedValues);
+            }
+        }
+
+        return compoundTag;
+    }
+
+    private Item createSaveItems(String msg) {
+        String[] args = msg.split(":");
+        Item item = Item.get(Integer.parseInt(args[0]), Integer.parseInt(args[1]));
+        item.setCount(Integer.parseInt(args[2]));
+        item.setCompoundTag(Tools.hexStringToBytes(args[3]));
+        return item;
+    }
+
+    private void saveItem(Item item, String name) {
+        String tag = item.hasCompoundTag() ? Tools.bytesToHexString(item.getCompoundTag()) : "not";
+        Config config = new Config(MagicItem.getInstance().getOtherFile() + "/items.yml", 2);
+        config.set(name, item.getId() + ":" + item.getDamage() + ":" + item.getCount() + ":" + tag);
+        config.save();
+    }
+
+    private void removeItem(Player player, List<Item> items, List<String> cmds, double money, String[] tipMegs) {
+        int i = 0;
+        Inventory inventory = player.getInventory();
+        List<String> needItemList = new ArrayList<>();
+        for (Item item : items) {
+            if (inventory.contains(item)) {
+                i++;
+            } else {
+                String itemname = item.getNamedTag().getCompound("display").getString("Name");
+                if (item.getId() == 387) {
+                    itemname = item.getNamedTag().getString("title");
+                }
+                needItemList.add(itemname + " §r*" + item.count);
+            }
+        }
+        if (i == items.size() && EconomyAPI.getInstance().myMoney(player) >= money) {
+            for (Item item : items) {
+                inventory.removeItem(new Item[]{item});
+            }
+            player.sendMessage(tipMegs[1] == "" ? "§a=== 合成成功 ===" : tipMegs[1]);
+            for (String cmd : cmds) {
+                if (cmd.contains("{player}")) {
+                    runCommand(player, cmd);
+                } else {
+                    MagicItem.getInstance().getServer().dispatchCommand(new ConsoleCommandSender(), cmd);
+                }
+            }
+            EconomyAPI.getInstance().reduceMoney(player.getName(), money);
+            return;
+        }
+        if (money > 0) {
+            needItemList.add("§6金币 §r*" + money);
+        }
+        final String needItems = String.join("、", needItemList);
+        player.sendMessage((tipMegs[0] == "" ? "§c缺少材料：" : tipMegs[0]) + needItems);
+    }
+
+    private void removeItemToForging(Player player, List<Item> items, ConfigSection msgs, double money) {
+        int i = 0;
+        List<Award> awards = new ArrayList<>();
+        PlayerInventory inventory = player.getInventory();
+        for (Item item : items) {
+            if (inventory.contains(item) && EconomyAPI.getInstance().myMoney(player.getName()) > money) {
+                i++;
+            }
+        }
+        if (i == items.size()) {
+            Iterator<Item> it = items.iterator();
+            while (it.hasNext()) {
+                inventory.removeItem(new Item[]{it.next()});
+            }
+            player.sendMessage("§e>> §a锻造成功！");
+            Map<String, Object> cmdMap = msgs.getAllMap();
+            for (Map.Entry<String, Object> entry : cmdMap.entrySet()) {
+                String key = entry.getKey();
+                String[] stringArray = (String[]) entry.getValue();
+                awards.add(new Award(stringArray, Float.parseFloat(key)));
+            }
+            Award award = Tools.lottery(awards);
+            if (award != null) {
+                for (String cmd : award.cmd) {
+                    if (cmd.contains("{player}")) {
+                        runCommand(player, cmd);
+                    } else {
+                        MagicItem.getInstance().getServer().dispatchCommand(new ConsoleCommandSender(), cmd);
+                    }
+                }
+                EconomyAPI.getInstance().reduceMoney(player.getName(), money);
+                return;
+            }
+            return;
+        }
+        player.sendMessage("§e>> §c锻造失败 §e<<");
+        player.sendMessage("§e>> §a需要物品 §e<<");
+        for (Item item2 : items) {
+            player.sendMessage(item2.getNamedTag().getCompound("display").getString("Name") + "§r*" + item2.count);
+        }
+        player.sendMessage("§6金币§r*" + money);
+    }
+
+    private void runCommand(Player player, String cmd) {
+        MagicItem.getInstance().getServer().dispatchCommand(new ConsoleCommandSender(), cmd.replace("{player}", player.getName()));
+    }
+
+    private void sendNbtItem(String str, String name, int count) {
+        Player player = MagicItem.getInstance().getServer().getPlayer(str);
+        if (player != null) {
+            Item item = createSaveItems((String) MagicItem.getOthers().get(name));
+            item.setCount(count);
+            player.getInventory().addItem(item);
+            player.sendMessage("§e>> §a恭喜获得 §5" + name);
+        }
+    }
+}

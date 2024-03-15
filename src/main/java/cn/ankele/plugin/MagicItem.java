@@ -1,31 +1,44 @@
 package cn.ankele.plugin;
 
 import cn.ankele.plugin.bean.ItemBean;
-import cn.ankele.plugin.utils.Commands;
+import cn.ankele.plugin.utils.BaseCommand;
 import cn.nukkit.Player;
+import cn.nukkit.Server;
 import cn.nukkit.inventory.PlayerInventory;
 import cn.nukkit.item.Item;
+import cn.nukkit.lang.PluginI18n;
+import cn.nukkit.lang.PluginI18nManager;
 import cn.nukkit.nbt.tag.CompoundTag;
+import cn.nukkit.permission.Permission;
 import cn.nukkit.plugin.PluginBase;
 import cn.nukkit.utils.Config;
+import lombok.Getter;
 
 import java.io.File;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 
-import static cn.nukkit.inventory.PlayerInventory.*;
-import static cn.nukkit.item.Item.*;
-import static cn.nukkit.nbt.tag.CompoundTag.*;
-import static cn.nukkit.plugin.PluginBase.*;
-import static cn.nukkit.utils.Config.*;
-
 public class MagicItem extends PluginBase {
+    @Getter
     public static MagicItem instance;
+    @Getter
+    public static PluginI18n i18n;
     private static LinkedHashMap<String, ItemBean> items = new LinkedHashMap<>();
+    @Getter
     private static LinkedHashMap<String, Object> others = new LinkedHashMap<>();
 
-    public void onEnable() {
+    @Override
+    public void onLoad() {
+        //save Plugin Instance
         instance = this;
+        //register the plugin i18n
+        i18n = PluginI18nManager.register(this);
+        //register the command of plugin
+        Server.getInstance().getPluginManager().addPermission(new Permission("magicitem.command", "magicitem 普通命令权限", "true"));
+        Server.getInstance().getPluginManager().addPermission(new Permission("magicitem.command.op", "magicitem OP命令权限", "op"));
+    }
+    @Override
+    public void onEnable() {
         getLogger().info("魔法物品已加载.....");
         getLogger().info("作者：Ankele");
         File itemsFiles = getItemFile();
@@ -47,7 +60,7 @@ public class MagicItem extends PluginBase {
         loadItems();
         initOther();
         saveDefaultConfig();
-        getServer().getCommandMap().register("", new Commands("mi"));
+        getServer().getCommandMap().register("", new BaseCommand("mi"));
         getServer().getPluginManager().registerEvents(new PlayerEvents(), this);
         new Thread(() -> MagicItem.this.getServer().getScheduler().scheduleRepeatingTask(new UpDateTask(), 10, true)).start();
     }
@@ -62,8 +75,24 @@ public class MagicItem extends PluginBase {
     public void loadItems() {
         items.clear();
         String[] items_ = getItems();
+        boolean isToNamespace = false;
+        if (getMainConfig().exists("updateItemIdToSpacename")) {
+            isToNamespace = getMainConfig().getBoolean("updateItemIdToSpacename");
+        }
         for (String itemName : items_) {
-            items.put(itemName, new ItemBean(itemName, new Config(getItemFile() + "/" + itemName.toLowerCase() + ".yml")));
+            Config cfg = new Config(getItemFile() + "/" + itemName.toLowerCase() + ".yml", 2);
+            if (isToNamespace) {
+                Item item = Item.fromString(cfg.getString("物品ID"));
+                cfg.set("物品ID", item.getNamespaceId());
+                cfg.set("物品Meta", item.getDamage());
+                cfg.save();
+            }
+            items.put(itemName, new ItemBean(itemName, cfg));
+        }
+        if (isToNamespace) {
+            Config cfg = getMainConfig();
+            cfg.set("updateItemIdToSpacename", false);
+            cfg.save();
         }
     }
 
@@ -102,16 +131,8 @@ public class MagicItem extends PluginBase {
         return new File(getDataFolder() + "/forging");
     }
 
-    public static MagicItem getInstance() {
-        return instance;
-    }
-
     public static LinkedHashMap<String, ItemBean> getItemsMap() {
         return items;
-    }
-
-    public static LinkedHashMap<String, Object> getOthers() {
-        return others;
     }
 
     public static void updateItem(Player player) {
@@ -143,7 +164,7 @@ public class MagicItem extends PluginBase {
             if (!items2.get(yamlName).attr.isEmpty()) {
                 continue;
             }
-            Item newItem = Commands.createItem(items2.get(yamlName));
+            Item newItem = BaseCommand.createItem(items2.get(yamlName));
             if (!item.equals(newItem)) {
                 newItem.setCount(item.count);
                 bag.remove(item);

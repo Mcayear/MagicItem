@@ -1,5 +1,6 @@
 GlobalItemCooldown: false
 ItemDisplayCooldown: 30
+updateItemIdToSpacename: false
 quality:
   list: 
   - 劣质

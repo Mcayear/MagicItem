@@ -1,5 +1,6 @@
 name: MagicItem
 version: "1.0.1"
-author: mcayear
+author: "mcayear"
+authors: ["mcayear"]
 api: ["1.0.0"]
 main: cn.ankele.plugin.MagicItem

@@ -9,6 +9,6 @@ public class Lightning extends EntityLightning {
         super(chunk, nbt);
         this.fireProof = true;
         this.fireTicks = 0;
-        this.maxFireTicks = 0;
+        //this.maxFireTicks = 0;
     }
 }
