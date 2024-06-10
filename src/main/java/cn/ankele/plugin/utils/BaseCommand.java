@@ -18,11 +18,13 @@ import cn.nukkit.lang.PluginI18n;
 import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.nbt.tag.DoubleTag;
 import cn.nukkit.nbt.tag.ListTag;
+import cn.nukkit.nbt.tag.StringTag;
 import cn.nukkit.utils.Config;
 import cn.nukkit.utils.ConfigSection;
 
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import cn.nukkit.utils.TextFormat;
 import me.onebone.economyapi.EconomyAPI;
@@ -116,8 +118,8 @@ public class BaseCommand extends Command {
                 data.set("药水范围", 5);
                 data.set("群体药水作用对象", 0);
                 data.set("使用雷击", false);
-                data.set("OP指令", "say {player}");
-                data.set("以玩家身份执行", "me test");
+                data.set("OP指令", Collections.singletonList("say {player}"));
+                data.set("以玩家身份执行", Collections.singletonList("me test"));
                 data.set("附魔", "0:1");
                 data.set("显示", "第一行{换行}第二行");
                 data.set("使用消耗", false);
@@ -456,8 +458,22 @@ public class BaseCommand extends Command {
         tag.putInt("distance", itemBean.getDistance());
         tag.putInt("actionEntity", itemBean.getActionEntity());
         tag.putBoolean("thunder", itemBean.isThunder());
-        tag.putString("opCmd", itemBean.getOpCmd());
-        tag.putString("pCmd", itemBean.getPlayerCmd());
+
+        // 将 List<String> 转换为 ListTag<StringTag>
+        ListTag<StringTag> opCmdListTag = new ListTag<>();
+        for (String cmd : itemBean.getOpCmd()) {
+            opCmdListTag.add(new StringTag("", cmd));
+        }
+
+        ListTag<StringTag> pCmdListTag = new ListTag<>();
+        for (String cmd : itemBean.getPlayerCmd()) {
+            pCmdListTag.add(new StringTag("", cmd));
+        }
+
+        // 将 ListTag 放入 tag
+        tag.putList("opCmd", opCmdListTag);
+        tag.putList("pCmd", pCmdListTag);
+
         tag.putString("getHints", itemBean.getGetHints());
         tag.putBoolean("isCon", itemBean.isCon());
         tag.putString("job", itemBean.getJob());

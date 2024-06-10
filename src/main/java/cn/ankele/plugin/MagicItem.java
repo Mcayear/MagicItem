@@ -62,11 +62,10 @@ public class MagicItem extends PluginBase {
         saveDefaultConfig();
         getServer().getCommandMap().register("", new BaseCommand("mi"));
         getServer().getPluginManager().registerEvents(new PlayerEvents(), this);
-        new Thread(() -> MagicItem.this.getServer().getScheduler().scheduleRepeatingTask(new UpDateTask(), 10, true)).start();
+        new Thread(() -> MagicItem.this.getServer().getScheduler().scheduleRepeatingTask(getInstance(), new UpdateTask(getInstance()), 40, true)).start();
     }
     public Config getMainConfig() {
-        Config config = new Config(MagicItem.getInstance().getDataFolder() + "/config.yml", 2);
-        return config;
+        return new Config(MagicItem.getInstance().getDataFolder() + "/config.yml", 2);
     }
     public void onDisable() {
         super.onDisable();
@@ -152,6 +151,9 @@ public class MagicItem extends PluginBase {
 
             CompoundTag tag = item.getNamedTag();
             if (tag.getString("yamlName").isEmpty()) {
+                continue;
+            }
+            if (tag.getString("sell").isEmpty()) {
                 continue;
             }
 

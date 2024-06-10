@@ -12,10 +12,12 @@ import cn.nukkit.event.player.PlayerInteractEvent;
 import cn.nukkit.event.player.PlayerJoinEvent;
 import cn.nukkit.item.Item;
 import cn.nukkit.nbt.tag.CompoundTag;
+import cn.nukkit.nbt.tag.StringTag;
 import cn.nukkit.potion.Effect;
 import cn.nukkit.utils.Config;
 
 import java.util.HashMap;
+import java.util.List;
 
 public class PlayerEvents implements Listener {
     private HashMap<String, HashMap<String, Long>> allUse = new HashMap<>();
@@ -27,6 +29,12 @@ public class PlayerEvents implements Listener {
         if (player == null) {
             return;
         }
+
+        // 物理触碰不应触发
+        if (event.getAction().equals(PlayerInteractEvent.Action.PHYSICAL)) {
+            return;
+        }
+
         Item item = player.getInventory().getItemInHand();
         if (!item.hasCompoundTag()) {
             return;
@@ -43,7 +51,7 @@ public class PlayerEvents implements Listener {
         long time = System.currentTimeMillis();
         if (config.getBoolean("GlobalItemCooldown")) {
             if (!this.useTime.containsKey(player.getName()) || (time - this.useTime.get(player.getName()).longValue()) / 1000 >= ((long) tag.getInt("coolTime"))) {
-                this.useTime.put(player.getName(), Long.valueOf(time));
+                this.useTime.put(player.getName(), time);
             } else {
                 player.sendMessage("§e[§cMagicItem§e]§r§a冷却中...剩余" + (((long) tag.getInt("coolTime")) - ((time - this.useTime.get(player.getName()).longValue()) / 1000)) + "秒");
                 return;
@@ -52,26 +60,26 @@ public class PlayerEvents implements Listener {
             HashMap<String, Long> allUserItem = this.allUse.get(player.getName());
             if (!allUserItem.containsKey(tag.getString("yamlName"))) {
                 HashMap<String, Long> temp2 = new HashMap<>();
-                temp2.put(tag.getString("yamlName"), Long.valueOf(time));
+                temp2.put(tag.getString("yamlName"), time);
                 this.allUse.put(player.getName(), temp2);
-            } else if ((time - allUserItem.get(tag.getString("yamlName")).longValue()) / 1000 < ((long) tag.getInt("coolTime"))) {
+            } else if ((time - allUserItem.get(tag.getString("yamlName"))) / 1000 < ((long) tag.getInt("coolTime"))) {
                 player.sendMessage("§e[§cMagicItem§e]§r§a冷却中...剩余" + (((long) tag.getInt("coolTime")) - ((time - allUserItem.get(tag.getString("yamlName")).longValue()) / 1000)) + "秒");
                 return;
             } else {
                 HashMap<String, Long> nowUserItem = new HashMap<>();
-                nowUserItem.put(tag.getString("yamlName"), Long.valueOf(time));
+                nowUserItem.put(tag.getString("yamlName"), time);
                 this.allUse.put(player.getName(), nowUserItem);
             }
         } else {
             HashMap<String, Long> temp = new HashMap<>();
-            temp.put(tag.getString("yamlName"), Long.valueOf(time));
+            temp.put(tag.getString("yamlName"), time);
             this.allUse.put(player.getName(), temp);
         }
-        if (!tag.getString("pCmd").isEmpty()) {
-            String[] cmds = tag.getString("pCmd").split("@");
-            int length = cmds.length;
-            for (int i = 0; i < length; i++) {
-                MagicItem.getInstance().getServer().dispatchCommand(player, cmds[i]);
+        if (!tag.getList("pCmd").isEmpty()) {
+            List<StringTag> cmds = tag.getList("pCmd", StringTag.class).getAll();
+            for (StringTag cmdTag : cmds) {
+                String cmd = cmdTag.data;
+                MagicItem.getInstance().getServer().dispatchCommand(player, cmd);
             }
         }
         if (tag.getBoolean("thunder")) {
@@ -82,11 +90,10 @@ public class PlayerEvents implements Listener {
             item.setCount(1);
             player.getInventory().removeItem(new Item[]{item});
         }
-        if (!tag.getString("opCmd").isEmpty()) {
-            String[] cmds2 = tag.getString("opCmd").split("@");
-            int length2 = cmds2.length;
-            for (int i2 = 0; i2 < length2; i2++) {
-                String cmd = cmds2[i2];
+        if (!tag.getList("opCmd").isEmpty()) {
+            List<StringTag> cmds = tag.getList("opCmd", StringTag.class).getAll();
+            for (StringTag cmdTag : cmds) {
+                String cmd = cmdTag.data;
                 if (cmd.contains("{player}")) {
                     runCommand(player, cmd);
                 } else {
@@ -96,9 +103,8 @@ public class PlayerEvents implements Listener {
         }
         if (!tag.getString("effect").isEmpty()) {
             String[] args = tag.getString("effect").split("@");
-            int length3 = args.length;
-            for (int i3 = 0; i3 < length3; i3++) {
-                String[] effect = args[i3].split(":");
+            for (String arg : args) {
+                String[] effect = arg.split(":");
                 player.addEffect(Effect.getEffect(Integer.parseInt(effect[0])).setAmplifier(Integer.parseInt(effect[1])).setDuration(Integer.parseInt(effect[2]) * 20));
             }
         }
@@ -107,13 +113,10 @@ public class PlayerEvents implements Listener {
             int distance = tag.getInt("distance");
             if (tag.getInt("actionEntity") == 0) {
                 Entity[] entities = player.getLevel().getEntities();
-                int length4 = entities.length;
-                for (int i4 = 0; i4 < length4; i4++) {
-                    Entity entity = entities[i4];
+                for (Entity entity : entities) {
                     if (entity.distance(player) <= ((double) distance) && !entity.getName().equals(player.getName())) {
-                        int length5 = args2.length;
-                        for (int i5 = 0; i5 < length5; i5++) {
-                            String[] effect2 = args2[i5].split(":");
+                        for (String s : args2) {
+                            String[] effect2 = s.split(":");
                             entity.addEffect(Effect.getEffect(Integer.parseInt(effect2[0])).setAmplifier(Integer.parseInt(effect2[1])).setDuration(Integer.parseInt(effect2[2]) * 20));
                         }
                     }
@@ -133,13 +136,10 @@ public class PlayerEvents implements Listener {
                 }
             } else if (tag.getInt("actionEntity") == 2) {
                 Entity[] entities3 = player.getLevel().getEntities();
-                int length8 = entities3.length;
-                for (int i8 = 0; i8 < length8; i8++) {
-                    Entity entity3 = entities3[i8];
+                for (Entity entity3 : entities3) {
                     if (!(entity3 instanceof Player) && entity3.distance(player) <= ((double) distance) && !entity3.getName().equals(player.getName())) {
-                        int length9 = args2.length;
-                        for (int i9 = 0; i9 < length9; i9++) {
-                            String[] effect4 = args2[i9].split(":");
+                        for (String s : args2) {
+                            String[] effect4 = s.split(":");
                             entity3.addEffect(Effect.getEffect(Integer.parseInt(effect4[0])).setAmplifier(Integer.parseInt(effect4[1])).setDuration(Integer.parseInt(effect4[2]) * 20));
                         }
                     }

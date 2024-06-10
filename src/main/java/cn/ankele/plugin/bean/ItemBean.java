@@ -5,6 +5,7 @@ import cn.nukkit.utils.Config;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
 import java.util.Map;
 
 @Setter
@@ -25,8 +26,8 @@ public class ItemBean {
     private String job;
     private String lore;
     private String name;
-    private String opCmd;
-    private String playerCmd;
+    private List<String> opCmd;
+    private List<String> playerCmd;
     private MagicItem plugin;
     private double sell;
     public Map<String, Object> attr;
@@ -47,8 +48,8 @@ public class ItemBean {
         this.effect = this.config.getString("获得药水");
         this.groupEffect = this.config.getString("群体药水");
         this.thunder = this.config.getBoolean("使用雷击", false);
-        this.opCmd = this.config.getString("OP指令");
-        this.playerCmd = this.config.getString("以玩家身份执行");
+        this.opCmd = this.config.getStringList("OP指令");
+        this.playerCmd = this.config.getStringList("以玩家身份执行");
         this.lore = this.config.getString("显示");
         this.isCon = this.config.getBoolean("使用消耗", false);
         this.coolTime = this.config.getInt("冷却时间", 0);
