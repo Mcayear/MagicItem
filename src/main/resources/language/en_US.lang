@@ -1,1 +1,4 @@
 magicitem.usage.permission=§cPermission denied.
+magicitem.usage.cooldown=§7[§fMagicItem§7] §aCooling down...§e {%0}§a seconds remaining
+magicitem.usage.showItem.cooldown=§7[§fItemDisplay§7] §aCooling down...§e {%0}§a seconds remaining
+magicitem.usage.showItem=§7[§fItemDisplay§7] §6Player§a {%0} §6is holding§r {%1}

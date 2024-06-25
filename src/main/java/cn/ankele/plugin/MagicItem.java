@@ -34,6 +34,7 @@ public class MagicItem extends PluginBase {
         //register the plugin i18n
         i18n = PluginI18nManager.register(this);
         //register the command of plugin
+        this.saveResource("config.yml");
         Server.getInstance().getPluginManager().addPermission(new Permission("magicitem.command", "magicitem 普通命令权限", "true"));
         Server.getInstance().getPluginManager().addPermission(new Permission("magicitem.command.op", "magicitem OP命令权限", "op"));
     }
@@ -62,7 +63,7 @@ public class MagicItem extends PluginBase {
         saveDefaultConfig();
         getServer().getCommandMap().register("", new BaseCommand("mi"));
         getServer().getPluginManager().registerEvents(new PlayerEvents(), this);
-        new Thread(() -> MagicItem.this.getServer().getScheduler().scheduleRepeatingTask(getInstance(), new UpdateTask(getInstance()), 40, true)).start();
+        // new Thread(() -> MagicItem.this.getServer().getScheduler().scheduleRepeatingTask(getInstance(), new UpdateTask(getInstance()), 40, true)).start();
     }
     public Config getMainConfig() {
         return new Config(MagicItem.getInstance().getDataFolder() + "/config.yml", 2);

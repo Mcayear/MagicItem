@@ -4,6 +4,7 @@ import cn.ankele.plugin.MagicItem;
 import cn.ankele.plugin.bean.Award;
 import cn.ankele.plugin.bean.ItemBean;
 import cn.nukkit.Player;
+import cn.nukkit.Server;
 import cn.nukkit.command.Command;
 import cn.nukkit.command.CommandSender;
 import cn.nukkit.command.ConsoleCommandSender;
@@ -24,7 +25,6 @@ import cn.nukkit.utils.ConfigSection;
 
 import java.text.DecimalFormat;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import cn.nukkit.utils.TextFormat;
 import me.onebone.economyapi.EconomyAPI;
@@ -140,7 +140,7 @@ public class BaseCommand extends Command {
             }
             case "give" -> {
                 Player player = api.getServer().getPlayer(args[1]);
-                if (!player.isValid()) {
+                if (player == null) {
                     sender.sendMessage("没有匹配的目标");
                     return false;
                 }
@@ -364,6 +364,13 @@ public class BaseCommand extends Command {
                     sender.sendMessage(TextFormat.RED+"仅限玩家执行");
                     return false;
                 }
+                Player player = sender.asPlayer();
+                Item item = player.getInventory().getItemInHand();
+                CompoundTag tag = item.getNamedTag();
+                if (tag != null) {
+                    MagicItem.instance.getLogger().info(item.getNamespaceId()+" *"+item.getCount());
+                    MagicItem.instance.getLogger().info(tag.toString());
+                }
 
 //                String itemName = args[1];
 //                Item item6 = ((Player) sender).getInventory().getItemInHand();
@@ -388,19 +395,30 @@ public class BaseCommand extends Command {
                 Config mainConfig = MagicItem.getInstance().getMainConfig();
                 Item showItem = player.getInventory().getItemInHand();
                 if (!showItem.hasCompoundTag()) {
-                    MagicItem.getInstance().getServer().broadcastMessage("§e[§a物品展示§e] §6玩家 §a" + player.getName() + " §6手里拿的是 §r" + showItem.getName());
+                    Server.getInstance().getOnlinePlayers().values().forEach(p -> {
+                        p.sendMessage(MagicItem.getI18n().tr(p.getLanguageCode(), "magicitem.usage.showItem", player.getName(), showItem.getName()));
+                    });
                     return true;
                 }
                 if (!this.useTime.containsKey(player.getName())) {
                     this.useTime.put(player.getName(), time);
                 } else if ((time - this.useTime.get(player.getName())) / 1000 < ((long) mainConfig.getInt("ItemDisplayCooldown"))) {
                     long s = ((long) mainConfig.getInt("ItemDisplayCooldown")) - ((time - this.useTime.get(player.getName())) / 1000);
-                    player.sendMessage("§e[§a物品展示§e]§r§a冷却中...剩余" + s + "秒");
+                    player.sendMessage(MagicItem.getI18n().tr(player.getLanguageCode(), "magicitem.usage.showItem.cooldown", s));
                     return false;
                 } else {
                     this.useTime.put(player.getName(), time);
                 }
-                MagicItem.getInstance().getServer().broadcastMessage("§e[§a物品展示§e] §6玩家 §a" + player.getName() + " §6手里拿的是 §r" + (showItem.getCustomName().isEmpty() ? showItem.getName() : showItem.getCustomName()));
+                Server.getInstance().getOnlinePlayers().values().forEach(p -> {
+                    String itemName = showItem.getCustomName().isEmpty() ? showItem.getName() : showItem.getCustomName();
+                    if (showItem.getId() == Item.WRITTEN_BOOK) {
+                        itemName = showItem.getNamedTag().getString("title");
+                    }
+                    if (showItem.getCount() > 1) {
+                        itemName += "§r§f *"+showItem.getCount();
+                    }
+                    p.sendMessage(MagicItem.getI18n().tr(p.getLanguageCode(), "magicitem.usage.showItem", player.getName(), itemName));
+                });
                 return true;
             }
             case "sell" -> {
@@ -432,6 +450,7 @@ public class BaseCommand extends Command {
                 MagicItem.instance.loadItems();
                 MagicItem.instance.initOther();
                 sender.sendMessage(TextFormat.GREEN+"配置文件已重新读取");
+                Server.getInstance().getOnlinePlayers().values().forEach(MagicItem::updateItem);
                 return true;
             }
             default -> {

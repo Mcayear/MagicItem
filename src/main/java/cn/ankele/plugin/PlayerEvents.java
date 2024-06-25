@@ -10,6 +10,8 @@ import cn.nukkit.event.entity.EntityDamageByEntityEvent;
 import cn.nukkit.event.entity.EntityDamageEvent;
 import cn.nukkit.event.player.PlayerInteractEvent;
 import cn.nukkit.event.player.PlayerJoinEvent;
+import cn.nukkit.event.player.PlayerLocallyInitializedEvent;
+import cn.nukkit.event.player.PlayerPreLoginEvent;
 import cn.nukkit.item.Item;
 import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.nbt.tag.StringTag;
@@ -45,7 +47,7 @@ public class PlayerEvents implements Listener {
         }
         Config config = MagicItem.getInstance().getMainConfig();
         if (config.getList("RestrictedWorlds").contains(player.level.getName())) {
-            player.sendMessage("§e[§cMagicItem§e]§r§a这个世界不允许使用魔法物品！");
+            player.sendMessage("§e[§cMagicItem§e]§r §a这个世界不允许使用魔法物品！");
             return;
         }
         long time = System.currentTimeMillis();
@@ -53,7 +55,7 @@ public class PlayerEvents implements Listener {
             if (!this.useTime.containsKey(player.getName()) || (time - this.useTime.get(player.getName()).longValue()) / 1000 >= ((long) tag.getInt("coolTime"))) {
                 this.useTime.put(player.getName(), time);
             } else {
-                player.sendMessage("§e[§cMagicItem§e]§r§a冷却中...剩余" + (((long) tag.getInt("coolTime")) - ((time - this.useTime.get(player.getName()).longValue()) / 1000)) + "秒");
+                player.sendMessage(MagicItem.getI18n().tr(player.getLanguageCode(), "magicitem.usage.cooldown", ((long) tag.getInt("coolTime")) - ((time - this.useTime.get(player.getName())) / 1000)));
                 return;
             }
         } else if (this.allUse.containsKey(player.getName())) {
@@ -63,7 +65,7 @@ public class PlayerEvents implements Listener {
                 temp2.put(tag.getString("yamlName"), time);
                 this.allUse.put(player.getName(), temp2);
             } else if ((time - allUserItem.get(tag.getString("yamlName"))) / 1000 < ((long) tag.getInt("coolTime"))) {
-                player.sendMessage("§e[§cMagicItem§e]§r§a冷却中...剩余" + (((long) tag.getInt("coolTime")) - ((time - allUserItem.get(tag.getString("yamlName")).longValue()) / 1000)) + "秒");
+                player.sendMessage(MagicItem.getI18n().tr(player.getLanguageCode(), "magicitem.usage.cooldown", ((long) tag.getInt("coolTime")) - ((time - allUserItem.get(tag.getString("yamlName"))) / 1000)));
                 return;
             } else {
                 HashMap<String, Long> nowUserItem = new HashMap<>();
@@ -149,7 +151,8 @@ public class PlayerEvents implements Listener {
     }
 
     @EventHandler
-    public void onPlayerJoinEvent(PlayerJoinEvent event) {
+    public void onPlayerJoinEvent(PlayerLocallyInitializedEvent event) {
+        MagicItem.updateItem(event.getPlayer());
     }
 
     private void runCommand(Player player, String cmd) {

@@ -3,6 +3,7 @@ package cn.ankele.plugin;
 import cn.nukkit.Player;
 import cn.nukkit.scheduler.PluginTask;
 
+// 弃用
 public class UpdateTask extends PluginTask<MagicItem> {
     public UpdateTask(MagicItem owner) {
         super(owner);
