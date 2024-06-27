@@ -3,6 +3,9 @@ package cn.ankele.plugin.utils;
 import cn.ankele.plugin.MagicItem;
 import cn.ankele.plugin.bean.Award;
 import cn.ankele.plugin.bean.ItemBean;
+import cn.ankele.plugin.bean.MagicItemAttr;
+import cn.ankele.plugin.bean.MagicItemMana;
+import cn.ankele.plugin.error.PluginNotInstalledException;
 import cn.nukkit.Player;
 import cn.nukkit.Server;
 import cn.nukkit.command.Command;
@@ -29,6 +32,8 @@ import java.util.*;
 import cn.nukkit.utils.TextFormat;
 import me.onebone.economyapi.EconomyAPI;
 
+import static cn.ankele.plugin.MagicItem.hasRcRPG;
+
 public class BaseCommand extends Command {
     protected MagicItem api;
     protected PluginI18n i18n;
@@ -38,7 +43,6 @@ public class BaseCommand extends Command {
     public BaseCommand(String name) {
         super(name, "魔法物品");
 
-        this.setPermission("magicitem.command");
         this.getCommandParameters().clear();
 
         this.getCommandParameters().put("add", new CommandParameter[]{
@@ -51,7 +55,8 @@ public class BaseCommand extends Command {
                 CommandParameter.newEnum("give", false, new String[]{"give"}),
                 CommandParameter.newType("player", true, CommandParamType.TARGET),
                 CommandParameter.newType("itemName", false, CommandParamType.STRING),
-                CommandParameter.newType("count", true, CommandParamType.INT)
+                CommandParameter.newType("count", true, CommandParamType.INT),
+                CommandParameter.newType("quality", true, CommandParamType.INT)
         });
 
         this.getCommandParameters().put("syn", new CommandParameter[]{
@@ -89,7 +94,7 @@ public class BaseCommand extends Command {
 
     @Override
     public boolean execute(CommandSender sender, String label, String[] args) {
-        LangCode langCode = sender.isPlayer() ? ((Player)sender).getLanguageCode() : LangCode.zh_CN;
+        LangCode langCode = sender.isPlayer() ? ((Player) sender).getLanguageCode() : LangCode.zh_CN;
 
         if (args.length < 1) {
             sender.sendMessage("缺少参数");
@@ -105,23 +110,23 @@ public class BaseCommand extends Command {
                 String itemId = args[2];
 
                 if (Tools.isExits(MagicItem.getInstance().getItemFile(), itemName)) {
-                    sender.sendMessage(TextFormat.RED+"§c这个物品已存在！");
+                    sender.sendMessage(TextFormat.RED + "§c这个物品已存在！");
                     return false;
                 }
 
-                ConfigSection data = new ConfigSection(new LinkedHashMap());
+                ConfigSection data = new ConfigSection(new LinkedHashMap<>());
                 data.set("物品ID", itemId);
                 data.set("物品Meta", 0);
                 data.set("名字", "魔法物品");
-                data.set("获得药水", "1:1:10@2:1:2");
-                data.set("群体药水", "1:1:10@2:1:2");
+                data.set("获得药水", List.of("1:1:10", "2:1:2"));
+                data.set("群体药水", List.of("1:1:10", "2:1:2"));
                 data.set("药水范围", 5);
                 data.set("群体药水作用对象", 0);
                 data.set("使用雷击", false);
-                data.set("OP指令", Collections.singletonList("say {player}"));
-                data.set("以玩家身份执行", Collections.singletonList("me test"));
-                data.set("附魔", "0:1");
-                data.set("显示", "第一行{换行}第二行");
+                data.set("OP指令", List.of("say {player}"));
+                data.set("以玩家身份执行", List.of("me test"));
+                data.set("附魔", List.of("0:1"));
+                data.set("显示", List.of("第一行", "第二行"));
                 data.set("使用消耗", false);
                 data.set("回收价格", 0);
                 data.set("职业限制", "无");
@@ -146,25 +151,29 @@ public class BaseCommand extends Command {
                 }
 
                 if (!sender.hasPermission("magicitem.command.op")) {
-                    sender.sendMessage(i18n.tr(langCode,"magicitem.usage.permission"));
+                    sender.sendMessage(i18n.tr(langCode, "magicitem.usage.permission"));
                     return false;
                 }
 
                 String itemName = args[2];
                 int count = args.length > 3 ? Integer.parseInt(args[3]) : 1;
                 ItemBean itemBean = null;
-                Item item = null;
+                Item item;
 
                 LinkedHashMap<String, Object> others = MagicItem.getOthers();
                 if (Tools.isExits(MagicItem.getInstance().getItemFile(), itemName)) {
                     Config config2 = new Config();
                     config2.load(MagicItem.getInstance().getItemFile() + "/" + itemName.toLowerCase() + ".yml");
                     itemBean = new ItemBean(itemName, config2);
-                    item = createItem(itemBean);
+                    if (args.length > 4) {
+                        item = createItem(itemBean, Integer.parseInt(args[4]));
+                    } else {
+                        item = createItem(itemBean);
+                    }
                 } else if (others.containsKey(itemName)) {
                     item = createSaveItems((String) others.get(itemName));
                 } else {
-                    sender.sendMessage("§c无法给予，物品§r "+itemName+"§r§c 不存在！");
+                    sender.sendMessage("§c无法给予，物品§r " + itemName + "§r§c 不存在！");
                     return false;
                 }
 
@@ -196,7 +205,7 @@ public class BaseCommand extends Command {
                         return false;
                     }
 
-                    ConfigSection data2 = new ConfigSection(new LinkedHashMap());
+                    ConfigSection data2 = new ConfigSection(new LinkedHashMap<>());
                     data2.set("需求", List.of("test:1", "test2:2"));
                     data2.set("执行指令", List.of("give {player} 264 66", "op {player}"));
                     data2.set("需求金币", 0);
@@ -212,7 +221,7 @@ public class BaseCommand extends Command {
                     }
                 } else if (Objects.equals(operation, "use")) {
                     if (!sender.isPlayer()) {
-                        sender.sendMessage(TextFormat.RED+"仅限玩家执行");
+                        sender.sendMessage(TextFormat.RED + "仅限玩家执行");
                         return false;
                     }
                     if (!Tools.isExits(MagicItem.getInstance().getSynFile(), synName)) {
@@ -299,7 +308,7 @@ public class BaseCommand extends Command {
                         return false;
                     }
 
-                    ConfigSection data3 = new ConfigSection(new LinkedHashMap());
+                    ConfigSection data3 = new ConfigSection(new LinkedHashMap<>());
                     data3.set("需求", List.of("test:1", "test2:2"));
                     data3.set("执行指令", List.of("give {player} 264 66", "op {player}"));
                     data3.set("需求金币", 0);
@@ -321,7 +330,7 @@ public class BaseCommand extends Command {
                     Player player3 = ((Player) sender).getPlayer();
                     Config config23 = new Config();
                     config23.load(MagicItem.getInstance().getForgingFile() + "/" + forName.toLowerCase() + ".yml");
-                    double money2 = (double) config23.getInt("需求金币");
+                    double money2 = config23.getInt("需求金币");
 
                     LinkedHashMap<String, ItemBean> itemsMap = MagicItem.getItemsMap();
                     List<Item> needItems = new ArrayList<>();
@@ -361,14 +370,14 @@ public class BaseCommand extends Command {
                 }
 
                 if (!sender.isPlayer()) {
-                    sender.sendMessage(TextFormat.RED+"仅限玩家执行");
+                    sender.sendMessage(TextFormat.RED + "仅限玩家执行");
                     return false;
                 }
                 Player player = sender.asPlayer();
                 Item item = player.getInventory().getItemInHand();
                 CompoundTag tag = item.getNamedTag();
                 if (tag != null) {
-                    MagicItem.instance.getLogger().info(item.getNamespaceId()+" *"+item.getCount());
+                    MagicItem.instance.getLogger().info(item.getNamespaceId() + " *" + item.getCount());
                     MagicItem.instance.getLogger().info(tag.toString());
                 }
 
@@ -386,7 +395,7 @@ public class BaseCommand extends Command {
             }
             case "show" -> {
                 if (!sender.isPlayer()) {
-                    sender.sendMessage(TextFormat.RED+"仅限玩家执行");
+                    sender.sendMessage(TextFormat.RED + "仅限玩家执行");
                     return false;
                 }
                 Player player = (Player) sender;
@@ -415,7 +424,7 @@ public class BaseCommand extends Command {
                         itemName = showItem.getNamedTag().getString("title");
                     }
                     if (showItem.getCount() > 1) {
-                        itemName += "§r§f *"+showItem.getCount();
+                        itemName += "§r§f *" + showItem.getCount();
                     }
                     p.sendMessage(MagicItem.getI18n().tr(p.getLanguageCode(), "magicitem.usage.showItem", player.getName(), itemName));
                 });
@@ -423,7 +432,7 @@ public class BaseCommand extends Command {
             }
             case "sell" -> {
                 if (!sender.isPlayer()) {
-                    sender.sendMessage(TextFormat.RED+"仅限玩家执行");
+                    sender.sendMessage(TextFormat.RED + "仅限玩家执行");
                     return false;
                 }
                 Player player = (Player) sender;
@@ -449,7 +458,7 @@ public class BaseCommand extends Command {
             case "reload" -> {
                 MagicItem.instance.loadItems();
                 MagicItem.instance.initOther();
-                sender.sendMessage(TextFormat.GREEN+"配置文件已重新读取");
+                sender.sendMessage(TextFormat.GREEN + "配置文件已重新读取");
                 Server.getInstance().getOnlinePlayers().values().forEach(MagicItem::updateItem);
                 return true;
             }
@@ -459,21 +468,39 @@ public class BaseCommand extends Command {
         }
     }
 
-    public static Item createItem(ItemBean itemBean) {
+    /**
+     * 创建物品
+     * @param itemBean
+     * @param qualityIndex 这里是品质的索引从 0 开始
+     * @return
+     */
+    public static Item createItem(ItemBean itemBean, int qualityIndex) {
+
         Item item = Item.fromString(itemBean.getItemId());
-        item.setDamage(itemBean.getItemMeta());
-        try {
-            if (item.getId() == 0) throw new Exception("无法获取物品！ID为" + itemBean.getItemId());
-            item.setDamage(itemBean.getItemMeta());
-        } catch (Throwable th) {
-            MagicItem.getInstance().getLogger().info("出问题的是:" + itemBean.getYamlName());
+
+        if (item.getId() == 0) {
+            MagicItem.getInstance().getLogger().error("出问题的是:" + itemBean.getYamlName() + "\n无法获取物品！ID为：" + itemBean.getItemId());
+            return Item.AIR_ITEM;
         }
-        item.getNamespaceId();
+
+        item.setDamage(itemBean.getItemMeta());
+
         CompoundTag tag = new CompoundTag();
         tag.putCompound("display", new CompoundTag("display").putString("Name", itemBean.getName()));
         tag.putString("yamlName", itemBean.getYamlName());
-        tag.putString("effect", itemBean.getEffect());
-        tag.putString("groupEffect", itemBean.getGroupEffect());
+
+        ListTag<StringTag> effectListTag = new ListTag<>();
+        for (String value : itemBean.getEffect()) {
+            effectListTag.add(new StringTag("", value));
+        }
+        tag.putList("effect", effectListTag);
+
+        ListTag<StringTag> groupEffectListTag = new ListTag<>();
+        for (String value : itemBean.getGroupEffect()) {
+            groupEffectListTag.add(new StringTag("", value));
+        }
+
+        tag.putList("groupEffect", groupEffectListTag);
         tag.putInt("distance", itemBean.getDistance());
         tag.putInt("actionEntity", itemBean.getActionEntity());
         tag.putBoolean("thunder", itemBean.isThunder());
@@ -502,20 +529,44 @@ public class BaseCommand extends Command {
 
         item.setNamedTag(tag);
 
-        List<String> loreList = new ArrayList<>();
-        double quality = 0.0;
+        List<String> loreList = new ArrayList<>(itemBean.getLore());
+
         if (!itemBean.attr.isEmpty()) {
-            quality = selectQuality(loreList);
-        }
-        loreList.add(itemBean.getLore().replaceAll("\\{换行}", String.valueOf('\n')));
-        if (!itemBean.attr.isEmpty()) {
-            loreList.add("§4一一一一一一一一一一");
-            tag.putCompound("attr", handleAttr(quality, itemBean.attr, loreList));
+            tag.putInt("quality", qualityIndex);
+            for (int i = 0; i < loreList.size(); i++) {
+                String v = loreList.get(i);
+                if (v.contains("@quality")) {
+                    loreList.set(i, v.replaceFirst("@quality", MagicItem.getInstance().getMainConfig().getStringList("quality.list").get(qualityIndex)));
+                    break;
+                }
+            }
+
+            if (!hasRcRPG) {
+                MagicItem.getInstance().getLogger().error("出问题的是:" + itemBean.getYamlName() + "\n无法进行属性解析，前置插件 RcRPG 未安装，请先安装插件。");
+                return Item.AIR_ITEM;
+            }
+
+            float multiple = MagicItem.getInstance().getMainConfig().getFloatList("quality.m").get(qualityIndex);
+            MagicItemAttr magicItemAttr = new MagicItemAttr(itemBean.attr, multiple);
+            for (int i = 0; i < loreList.size(); i++) {
+                String v = loreList.get(i);
+                if (v.contains("{{")) {
+                    loreList.set(i, magicItemAttr.replaceAttrTemplate(v));
+                }
+            }
+            tag.putCompound("attr", magicItemAttr.getCompound());
         }
 
         if (!itemBean.mana.isEmpty()) {
-            loreList.add("§4一一一一一一一一一一");
-            tag.putCompound("mana", handleMana(itemBean.mana, loreList));
+            MagicItemMana magicItemMana = new MagicItemMana(itemBean.mana);
+            for (int i = 0; i < loreList.size(); i++) {
+                String v = loreList.get(i);
+                if (v.contains("{(")) {
+                    loreList.set(i, magicItemMana.replaceAttrTemplate(v));
+                }
+            }
+
+            tag.putCompound("mana", magicItemMana.getCompound());
         }
 
         item.setNamedTag(tag);
@@ -529,79 +580,36 @@ public class BaseCommand extends Command {
         return item;
     }
 
-    private static CompoundTag handleMana(Map<String, Object> mana, List<String> loreList) {
-        CompoundTag compoundTag = new CompoundTag();
-
-        for (Map.Entry<String, Object> entry : mana.entrySet()) {
-            String manaibuteName = entry.getKey();
-            Object manaibuteValue = entry.getValue();
-
-            if (manaibuteValue instanceof Integer) {
-                int value = (int) manaibuteValue;
-                compoundTag.putInt(manaibuteName, value);
-                loreList.add("§a" + manaibuteName + ": " + value);// §7mana: 123
-            }
+    public static Item createItem(ItemBean itemBean) {
+        if (!itemBean.attr.isEmpty()) {
+            return createItem(itemBean, selectQuality());
         }
-        return compoundTag;
+        return createItem(itemBean, 0);
     }
 
-    private static double selectQuality(List<String> loreList) {
+    /**
+     * 选择品质
+     *
+     * @return 正整数 0:劣质 1:普通 2:优质 3:完美 4:传说
+     */
+    private static int selectQuality() {
         Config c = MagicItem.getInstance().getMainConfig();
-        List<Double> qualityList = c.getDoubleList("quality.m");
         List<Double> probabilityList = c.getDoubleList("quality.p");
 
         // 随机生成一个0到1之间的随机数
         double randomValue = new Random().nextDouble();
 
         double cumulativeProbability = 0.0;
-        for (int i = 0; i < qualityList.size(); i++) {
+        for (int i = 0; i < probabilityList.size(); i++) {
             cumulativeProbability += probabilityList.get(i);
 
             if (randomValue < cumulativeProbability) {
-                loreList.add("§r§f[§b素材§f]§r            " + c.getStringList("quality.list").get(i));
-                return qualityList.get(i);
+                return i;
             }
         }
 
         // 如果没有匹配的品质，则返回默认品质或者处理其他逻辑
-        return 1;
-    }
-
-    private static CompoundTag handleAttr(double quality, Map<String, Object> attr, List<String> loreList) {
-        CompoundTag compoundTag = new CompoundTag();
-        DecimalFormat decimalFormat = new DecimalFormat("#.####");
-
-        for (Map.Entry<String, Object> entry : attr.entrySet()) {
-            String attributeName = entry.getKey();
-            Object attributeValue = entry.getValue();
-
-            if (attributeValue instanceof List<?>) {
-                List<Double> attributeValues = (List<Double>) attributeValue;
-                ListTag<DoubleTag> modifiedValues = new ListTag<>();
-
-                for (Double value : attributeValues) {
-                    // 将属性值乘以品质因子
-                    double modifiedValue = value * quality;
-                    String formattedValue = (value < 1) ? decimalFormat.format(modifiedValue) : String.valueOf((int) modifiedValue);
-                    modifiedValues.add(new DoubleTag("", Double.parseDouble(formattedValue)));
-                }
-                if (modifiedValues.size() == 1) {
-                    Double num = modifiedValues.get(0).getData();
-                    if (num < 1 && num > 0) {
-                        loreList.add("§7" + attributeName + ": " + num + "%%");// §7attrName: 123%%
-                    } else {
-                        loreList.add("§7" + attributeName + ": " + (int) Math.floor(num));// §7attrName: 123
-                    }
-                } else {
-                    loreList.add("§7" + attributeName + ": " + (int) Math.floor(modifiedValues.get(0).getData()) + "-" + (int) Math.floor(modifiedValues.get(1).getData()));// §7attrName: 123-321
-                }
-
-                // 将修改后的属性值添加到CompoundTag
-                compoundTag.putList(attributeName, modifiedValues);
-            }
-        }
-
-        return compoundTag;
+        return 0;
     }
 
     private Item createSaveItems(String msg) {

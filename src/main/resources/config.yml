@@ -1,5 +1,5 @@
 GlobalItemCooldown: false
-ItemDisplayCooldown: 30
+ItemDisplayCooldown: 15
 updateItemIdToSpacename: false
 quality:
   list: 
@@ -8,13 +8,13 @@ quality:
   - 优质
   - 完美
   - 传奇
-  p:
+  p: # 概率
   - 0.3
   - 0.4
   - 0.15
   - 0.04
   - 0.01
-  m:
+  m: # 属性的品质系数
   - 0.8
   - 1
   - 1.2

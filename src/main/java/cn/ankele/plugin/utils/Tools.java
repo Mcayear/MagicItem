@@ -13,7 +13,7 @@ public class Tools {
     }
 
     public static byte[] hexStringToBytes(String hexString) {
-        if (hexString == null || hexString.equals("")) {
+        if (hexString == null || hexString.isEmpty()) {
             return null;
         }
         String hexString2 = hexString.toUpperCase();
@@ -29,7 +29,7 @@ public class Tools {
 
     public static String bytesToHexString(byte[] src) {
         StringBuilder stringBuilder = new StringBuilder("");
-        if (src == null || src.length <= 0) {
+        if (src == null || src.length == 0) {
             return null;
         }
         for (byte aSrc : src) {
@@ -44,19 +44,21 @@ public class Tools {
 
     public static boolean isExits(File dir, String name) {
         File[] listFiles = dir.listFiles();
-        int length = listFiles.length;
-        for (int i = 0; i < length; i++) {
-            if (listFiles[i].getName().equals(name + ".yml")) {
+        if (listFiles == null) {
+            return false;
+        }
+        for (File listFile : listFiles) {
+            if (listFile.getName().equals(name + ".yml")) {
                 return true;
             }
         }
         return false;
     }
 
-    public static List<Enchantment> getEnchant(String ench) {
+    public static List<Enchantment> getEnchant(List<String> ench) {
         List<Enchantment> list = new ArrayList<>();
-        for (String enchs : ench.split("@")) {
-            String[] s = enchs.split(":");
+        for (String enchantment : ench) {
+            String[] s = enchantment.split(":");
             list.add(Enchantment.getEnchantment(Integer.parseInt(s[0])).setLevel(Integer.parseInt(s[1])));
         }
         return list;

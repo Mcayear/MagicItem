@@ -9,7 +9,6 @@ import cn.nukkit.item.Item;
 import cn.nukkit.lang.PluginI18n;
 import cn.nukkit.lang.PluginI18nManager;
 import cn.nukkit.nbt.tag.CompoundTag;
-import cn.nukkit.permission.Permission;
 import cn.nukkit.plugin.PluginBase;
 import cn.nukkit.utils.Config;
 import lombok.Getter;
@@ -27,6 +26,8 @@ public class MagicItem extends PluginBase {
     @Getter
     private static LinkedHashMap<String, Object> others = new LinkedHashMap<>();
 
+    public static boolean hasRcRPG;
+
     @Override
     public void onLoad() {
         //save Plugin Instance
@@ -35,13 +36,14 @@ public class MagicItem extends PluginBase {
         i18n = PluginI18nManager.register(this);
         //register the command of plugin
         this.saveResource("config.yml");
-        Server.getInstance().getPluginManager().addPermission(new Permission("magicitem.command", "magicitem 普通命令权限", "true"));
-        Server.getInstance().getPluginManager().addPermission(new Permission("magicitem.command.op", "magicitem OP命令权限", "op"));
     }
     @Override
     public void onEnable() {
         getLogger().info("魔法物品已加载.....");
         getLogger().info("作者：Ankele");
+
+        hasRcRPG = Server.getInstance().getPluginManager().getPlugin("RcRPG") != null;
+
         File itemsFiles = getItemFile();
         File synFiles = getSynFile();
         File otherFiles = getOtherFile();
@@ -63,7 +65,6 @@ public class MagicItem extends PluginBase {
         saveDefaultConfig();
         getServer().getCommandMap().register("", new BaseCommand("mi"));
         getServer().getPluginManager().registerEvents(new PlayerEvents(), this);
-        // new Thread(() -> MagicItem.this.getServer().getScheduler().scheduleRepeatingTask(getInstance(), new UpdateTask(getInstance()), 40, true)).start();
     }
     public Config getMainConfig() {
         return new Config(MagicItem.getInstance().getDataFolder() + "/config.yml", 2);
@@ -167,7 +168,10 @@ public class MagicItem extends PluginBase {
             if (!items2.get(yamlName).attr.isEmpty()) {
                 continue;
             }
-            Item newItem = BaseCommand.createItem(items2.get(yamlName));
+
+            int qualityIndex = tag.getInt("quality");
+
+            Item newItem = BaseCommand.createItem(items2.get(yamlName), qualityIndex);
             if (!item.equals(newItem)) {
                 newItem.setCount(item.count);
                 bag.remove(item);

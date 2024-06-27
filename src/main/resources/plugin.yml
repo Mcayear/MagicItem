@@ -4,3 +4,12 @@ author: "mcayear"
 authors: ["mcayear"]
 api: ["1.0.0"]
 main: cn.ankele.plugin.MagicItem
+depend: ["EconomyAPI"]
+softdepend: ["RcRPG"]
+permissions:
+  magicitem.command:
+    description: "MagicItem 基本命令权限"
+    default: true
+  magicitem.command.op:
+    description: "MagicItem 管理员命令权限"
+    default: op

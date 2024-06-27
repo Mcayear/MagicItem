@@ -14,6 +14,7 @@ import cn.nukkit.event.player.PlayerLocallyInitializedEvent;
 import cn.nukkit.event.player.PlayerPreLoginEvent;
 import cn.nukkit.item.Item;
 import cn.nukkit.nbt.tag.CompoundTag;
+import cn.nukkit.nbt.tag.ListTag;
 import cn.nukkit.nbt.tag.StringTag;
 import cn.nukkit.potion.Effect;
 import cn.nukkit.utils.Config;
@@ -52,7 +53,7 @@ public class PlayerEvents implements Listener {
         }
         long time = System.currentTimeMillis();
         if (config.getBoolean("GlobalItemCooldown")) {
-            if (!this.useTime.containsKey(player.getName()) || (time - this.useTime.get(player.getName()).longValue()) / 1000 >= ((long) tag.getInt("coolTime"))) {
+            if (!this.useTime.containsKey(player.getName()) || (time - this.useTime.get(player.getName())) / 1000 >= ((long) tag.getInt("coolTime"))) {
                 this.useTime.put(player.getName(), time);
             } else {
                 player.sendMessage(MagicItem.getI18n().tr(player.getLanguageCode(), "magicitem.usage.cooldown", ((long) tag.getInt("coolTime")) - ((time - this.useTime.get(player.getName())) / 1000)));
@@ -90,7 +91,7 @@ public class PlayerEvents implements Listener {
         }
         if (tag.getBoolean("isCon")) {
             item.setCount(1);
-            player.getInventory().removeItem(new Item[]{item});
+            player.getInventory().removeItem(item);
         }
         if (!tag.getList("opCmd").isEmpty()) {
             List<StringTag> cmds = tag.getList("opCmd", StringTag.class).getAll();
@@ -103,35 +104,32 @@ public class PlayerEvents implements Listener {
                 }
             }
         }
-        if (!tag.getString("effect").isEmpty()) {
-            String[] args = tag.getString("effect").split("@");
-            for (String arg : args) {
-                String[] effect = arg.split(":");
+        if (!tag.getList("effect").isEmpty()) {
+            List<StringTag> args = (List<StringTag>) tag.getList("effect").getAll();
+            for (StringTag arg : args) {
+                String[] effect = arg.parseValue().split(":");
                 player.addEffect(Effect.getEffect(Integer.parseInt(effect[0])).setAmplifier(Integer.parseInt(effect[1])).setDuration(Integer.parseInt(effect[2]) * 20));
             }
         }
-        if (!tag.getString("groupEffect").isEmpty()) {
-            String[] args2 = tag.getString("groupEffect").split("@");
+        if (!tag.getList("groupEffect").isEmpty()) {
+            List<StringTag> args = (List<StringTag>) tag.getList("groupEffect").getAll();
             int distance = tag.getInt("distance");
             if (tag.getInt("actionEntity") == 0) {
                 Entity[] entities = player.getLevel().getEntities();
                 for (Entity entity : entities) {
                     if (entity.distance(player) <= ((double) distance) && !entity.getName().equals(player.getName())) {
-                        for (String s : args2) {
-                            String[] effect2 = s.split(":");
+                        for (StringTag arg : args) {
+                            String[] effect2 = arg.parseValue().split(":");
                             entity.addEffect(Effect.getEffect(Integer.parseInt(effect2[0])).setAmplifier(Integer.parseInt(effect2[1])).setDuration(Integer.parseInt(effect2[2]) * 20));
                         }
                     }
                 }
             } else if (tag.getInt("actionEntity") == 1) {
                 Entity[] entities2 = player.getLevel().getEntities();
-                int length6 = entities2.length;
-                for (int i6 = 0; i6 < length6; i6++) {
-                    Entity entity2 = entities2[i6];
+                for (Entity entity2 : entities2) {
                     if ((entity2 instanceof Player) && entity2.distance(player) <= ((double) distance) && !entity2.getName().equals(player.getName())) {
-                        int length7 = args2.length;
-                        for (int i7 = 0; i7 < length7; i7++) {
-                            String[] effect3 = args2[i7].split(":");
+                        for (StringTag arg : args) {
+                            String[] effect3 = arg.parseValue().split(":");
                             entity2.addEffect(Effect.getEffect(Integer.parseInt(effect3[0])).setAmplifier(Integer.parseInt(effect3[1])).setDuration(Integer.parseInt(effect3[2]) * 20));
                         }
                     }
@@ -140,8 +138,8 @@ public class PlayerEvents implements Listener {
                 Entity[] entities3 = player.getLevel().getEntities();
                 for (Entity entity3 : entities3) {
                     if (!(entity3 instanceof Player) && entity3.distance(player) <= ((double) distance) && !entity3.getName().equals(player.getName())) {
-                        for (String s : args2) {
-                            String[] effect4 = s.split(":");
+                        for (StringTag arg : args) {
+                            String[] effect4 = arg.parseValue().split(":");
                             entity3.addEffect(Effect.getEffect(Integer.parseInt(effect4[0])).setAmplifier(Integer.parseInt(effect4[1])).setDuration(Integer.parseInt(effect4[2]) * 20));
                         }
                     }
