@@ -5,7 +5,6 @@ import cn.ankele.plugin.bean.Award;
 import cn.ankele.plugin.bean.ItemBean;
 import cn.ankele.plugin.bean.MagicItemAttr;
 import cn.ankele.plugin.bean.MagicItemMana;
-import cn.ankele.plugin.error.PluginNotInstalledException;
 import cn.nukkit.Player;
 import cn.nukkit.Server;
 import cn.nukkit.command.Command;
@@ -20,13 +19,11 @@ import cn.nukkit.item.enchantment.Enchantment;
 import cn.nukkit.lang.LangCode;
 import cn.nukkit.lang.PluginI18n;
 import cn.nukkit.nbt.tag.CompoundTag;
-import cn.nukkit.nbt.tag.DoubleTag;
 import cn.nukkit.nbt.tag.ListTag;
 import cn.nukkit.nbt.tag.StringTag;
 import cn.nukkit.utils.Config;
 import cn.nukkit.utils.ConfigSection;
 
-import java.text.DecimalFormat;
 import java.util.*;
 
 import cn.nukkit.utils.TextFormat;
@@ -44,6 +41,10 @@ public class BaseCommand extends Command {
         super(name, "魔法物品");
 
         this.getCommandParameters().clear();
+
+        this.getCommandParameters().put("help", new CommandParameter[]{
+                CommandParameter.newEnum("help", false, new String[]{"help"})
+        });
 
         this.getCommandParameters().put("add", new CommandParameter[]{
                 CommandParameter.newEnum("add", false, new String[]{"add"}),
@@ -101,6 +102,10 @@ public class BaseCommand extends Command {
             return false;
         }
         switch (args[0]) {
+            case "help" -> {
+                this.sendCommandHelp(sender);
+                return true;
+            }
             case "add" -> {
                 if (!sender.hasPermission("magicitem.command.op")) {
                     sender.sendMessage(i18n.tr(langCode, "magicitem.usage.permission"));
@@ -133,10 +138,10 @@ public class BaseCommand extends Command {
                 data.set("冷却时间", 0);
                 data.set("获得提示", "恭喜获得魔法物品");
                 data.set("全服提示", "恭喜 {player} 获得魔法物品");
-                data.set("属性.攻击力", Arrays.asList(3, 5));
-                data.set("属性.防御力", Arrays.asList(1, 1));
-                data.set("魔素.风", 2);
-                data.set("魔素.同谐", 1);
+//                data.set("属性.攻击力", Arrays.asList(3.0f, 5.0f));
+//                data.set("属性.防御力", Arrays.asList(1.0f, 1.0f));
+//                data.set("魔素.风", 2);
+//                data.set("魔素.同谐", 1);
                 Config config = new Config(MagicItem.getInstance().getDataFolder().toString() + "/items/" + itemName.toLowerCase() + ".yml", 2);
                 config.setAll(data);
                 config.save();
@@ -580,6 +585,18 @@ public class BaseCommand extends Command {
         return item;
     }
 
+    public void sendCommandHelp(CommandSender sender) {
+        LangCode langCode = sender.isPlayer() ? ((Player) sender).getLanguageCode() : LangCode.zh_CN;
+        sender.sendMessage(i18n.tr(langCode, "magicitem.commands.help"));
+        if (sender.isOp()) {
+            sender.sendMessage(i18n.tr(langCode, "magicitem.commands.add.help"));
+            sender.sendMessage(i18n.tr(langCode, "magicitem.commands.give.help"));
+            sender.sendMessage(i18n.tr(langCode, "magicitem.commands.reload.help"));
+        }
+        sender.sendMessage(i18n.tr(langCode, "magicitem.commands.show.help"));
+        sender.sendMessage(i18n.tr(langCode, "magicitem.commands.sell.help"));
+    }
+
     public static Item createItem(ItemBean itemBean) {
         if (!itemBean.attr.isEmpty()) {
             return createItem(itemBean, selectQuality());
@@ -661,7 +678,7 @@ public class BaseCommand extends Command {
             needItemList.add("§6金币 §r*" + money);
         }
         final String needItems = String.join("、", needItemList);
-        player.sendMessage((tipMegs[0] == "" ? "§c缺少材料：" : tipMegs[0]) + needItems);
+        player.sendMessage((tipMegs[0].isEmpty() ? "§c缺少材料：" : tipMegs[0]) + needItems);
     }
 
     private void removeItemToForging(Player player, List<Item> items, ConfigSection msgs, double money) {
@@ -674,9 +691,8 @@ public class BaseCommand extends Command {
             }
         }
         if (i == items.size()) {
-            Iterator<Item> it = items.iterator();
-            while (it.hasNext()) {
-                inventory.removeItem(new Item[]{it.next()});
+            for (Item item : items) {
+                inventory.removeItem(item);
             }
             player.sendMessage("§e>> §a锻造成功！");
             Map<String, Object> cmdMap = msgs.getAllMap();

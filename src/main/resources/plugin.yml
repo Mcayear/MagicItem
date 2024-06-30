@@ -2,6 +2,7 @@ name: MagicItem
 version: "1.0.1"
 author: "mcayear"
 authors: ["mcayear"]
+load: STARTUP
 api: ["1.0.0"]
 main: cn.ankele.plugin.MagicItem
 depend: ["EconomyAPI"]
