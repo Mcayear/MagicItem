@@ -236,7 +236,7 @@ public class BaseCommand extends Command {
                     Player player2 = ((Player) sender).getPlayer();
                     Config config22 = new Config();
                     config22.load(MagicItem.getInstance().getSynFile() + "/" + synName.toLowerCase() + ".yml");
-                    double money = (double) config22.getInt("需求金币");
+                    double money = config22.getInt("需求金币");
                     LinkedHashMap<String, ItemBean> items = MagicItem.getItemsMap();
                     List<Item> needItems = new ArrayList<>();
 
@@ -278,13 +278,13 @@ public class BaseCommand extends Command {
                             }
                         } else {
                             if (items.containsKey(name)) {
-                                Item item2 = createItem(items.get(name));
-                                item2.setCount(count);
-                                needItems.add(item2);
+                                Item item = createItem(items.get(name));
+                                item.setCount(count);
+                                needItems.add(item);
                             } else if (others.containsKey(name)) {
-                                Item item3 = createSaveItems((String) others.get(name));
-                                item3.setCount(count);
-                                needItems.add(item3);
+                                Item item = createSaveItems((String) others.get(name));
+                                item.setCount(count);
+                                needItems.add(item);
                             } else {
                                 sender.sendMessage("§c检测到合成需求有不存在的物品：§r" + name);
                                 return false;
@@ -313,13 +313,18 @@ public class BaseCommand extends Command {
                         return false;
                     }
 
-                    ConfigSection data3 = new ConfigSection(new LinkedHashMap<>());
-                    data3.set("需求", List.of("test:1", "test2:2"));
-                    data3.set("执行指令", List.of("give {player} 264 66", "op {player}"));
-                    data3.set("需求金币", 0);
-                    Config config4 = new Config(MagicItem.getInstance().getDataFolder().toString() + "/forging/" + forName.toLowerCase() + ".yml", 2);
-                    config4.setAll(data3);
-                    config4.save();
+                    ConfigSection data = new ConfigSection(new LinkedHashMap<>());
+                    data.set("需求", List.of("test:1", "test2:2"));
+                    data.set("执行指令", new ConfigSection(new LinkedHashMap<>() {
+                        {
+                            put("80", List.of("give {player} 264 66"));
+                            put("20", List.of("op {player}"));
+                        }
+                    }));
+                    data.set("需求金币", 0);
+                    Config config = new Config(MagicItem.getInstance().getDataFolder().toString() + "/forging/" + forName.toLowerCase() + ".yml", 2);
+                    config.setAll(data);
+                    config.save();
                     sender.sendMessage("§a添加成功！");
                     return true;
                 } else if (Objects.equals(operation, "use")) {
@@ -333,15 +338,16 @@ public class BaseCommand extends Command {
                         return false;
                     }
                     Player player3 = ((Player) sender).getPlayer();
-                    Config config23 = new Config();
-                    config23.load(MagicItem.getInstance().getForgingFile() + "/" + forName.toLowerCase() + ".yml");
-                    double money2 = config23.getInt("需求金币");
+                    Config config = new Config();
+                    config.load(MagicItem.getInstance().getForgingFile() + "/" + forName.toLowerCase() + ".yml");
+                    double money2 = config.getInt("需求金币");
 
                     LinkedHashMap<String, ItemBean> itemsMap = MagicItem.getItemsMap();
                     List<Item> needItems = new ArrayList<>();
-                    String[] needArray = config23.getString("需求").split("@");
-                    //String[] msgs = config23.getString("执行命令").split("@");
-                    ConfigSection cmdValue = config23.getSection("执行命令");
+
+                    List<String> needArray = config.getStringList("需求");
+                    //String[] msgs = config.getString("执行指令").split("@");
+                    ConfigSection cmdValue = config.getSection("执行指令");
                     LinkedHashMap<String, Object> others2 = MagicItem.getOthers();
                     for (String needArray2 : needArray) {
                         String itemName = needArray2.split(":")[0];
@@ -359,8 +365,8 @@ public class BaseCommand extends Command {
                             return false;
                         }
                     }
-                    //removeItemToForging(player3, needItems2, msgs, money2);
-                    removeItemToForging(player3, needItems, cmdValue, money2);
+                    String[] tipMegs = {config.getString("失败提示", ""), config.getString("成功提示", "")};
+                    removeItemToForging(player3, needItems, cmdValue, money2, tipMegs);
 
                     return true;
                 }
@@ -661,9 +667,9 @@ public class BaseCommand extends Command {
         }
         if (i == items.size() && EconomyAPI.getInstance().myMoney(player) >= money) {
             for (Item item : items) {
-                inventory.removeItem(new Item[]{item});
+                inventory.removeItem(item);
             }
-            player.sendMessage(tipMegs[1] == "" ? "§a=== 合成成功 ===" : tipMegs[1]);
+            player.sendMessage(tipMegs[1].isEmpty() ? "§a=== 合成成功 ===" : tipMegs[1]);
             for (String cmd : cmds) {
                 if (cmd.contains("{player}")) {
                     runCommand(player, cmd);
@@ -681,24 +687,31 @@ public class BaseCommand extends Command {
         player.sendMessage((tipMegs[0].isEmpty() ? "§c缺少材料：" : tipMegs[0]) + needItems);
     }
 
-    private void removeItemToForging(Player player, List<Item> items, ConfigSection msgs, double money) {
+    private void removeItemToForging(Player player, List<Item> items, ConfigSection msgs, double money, String[] tipMegs) {
         int i = 0;
         List<Award> awards = new ArrayList<>();
+        List<String> needItemList = new ArrayList<>();
         PlayerInventory inventory = player.getInventory();
         for (Item item : items) {
-            if (inventory.contains(item) && EconomyAPI.getInstance().myMoney(player.getName()) > money) {
+            if (inventory.contains(item)) {
                 i++;
+            } else {
+                String itemname = item.getNamedTag().getCompound("display").getString("Name");
+                if (item.getId() == 387) {
+                    itemname = item.getNamedTag().getString("title");
+                }
+                needItemList.add(itemname + " §r*" + item.count);
             }
         }
         if (i == items.size()) {
             for (Item item : items) {
                 inventory.removeItem(item);
             }
-            player.sendMessage("§e>> §a锻造成功！");
+            player.sendMessage(tipMegs[1].isEmpty() ? "§a=== 锻造成功 ===" : tipMegs[1]);
             Map<String, Object> cmdMap = msgs.getAllMap();
             for (Map.Entry<String, Object> entry : cmdMap.entrySet()) {
                 String key = entry.getKey();
-                String[] stringArray = (String[]) entry.getValue();
+                ArrayList<String> stringArray = (ArrayList<String>) entry.getValue();
                 awards.add(new Award(stringArray, Float.parseFloat(key)));
             }
             Award award = Tools.lottery(awards);
@@ -715,12 +728,12 @@ public class BaseCommand extends Command {
             }
             return;
         }
-        player.sendMessage("§e>> §c锻造失败 §e<<");
-        player.sendMessage("§e>> §a需要物品 §e<<");
-        for (Item item2 : items) {
-            player.sendMessage(item2.getNamedTag().getCompound("display").getString("Name") + "§r*" + item2.count);
+
+        if (money > 0) {
+            needItemList.add("§6金币 §r*" + money);
         }
-        player.sendMessage("§6金币§r*" + money);
+        final String needItems = String.join("、", needItemList);
+        player.sendMessage(tipMegs[0].isEmpty() ? "§c缺少材料：" + needItems : tipMegs[0].replace("%need%", needItems));
     }
 
     private void runCommand(Player player, String cmd) {

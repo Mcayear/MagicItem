@@ -1,5 +1,5 @@
 name: MagicItem
-version: "1.0.1"
+version: "1.1.2"
 author: "mcayear"
 authors: ["mcayear"]
 load: STARTUP
