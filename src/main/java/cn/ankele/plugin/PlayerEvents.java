@@ -9,12 +9,10 @@ import cn.nukkit.event.Listener;
 import cn.nukkit.event.entity.EntityDamageByEntityEvent;
 import cn.nukkit.event.entity.EntityDamageEvent;
 import cn.nukkit.event.player.PlayerInteractEvent;
-import cn.nukkit.event.player.PlayerJoinEvent;
 import cn.nukkit.event.player.PlayerLocallyInitializedEvent;
-import cn.nukkit.event.player.PlayerPreLoginEvent;
+import cn.nukkit.event.player.PlayerQuitEvent;
 import cn.nukkit.item.Item;
 import cn.nukkit.nbt.tag.CompoundTag;
-import cn.nukkit.nbt.tag.ListTag;
 import cn.nukkit.nbt.tag.StringTag;
 import cn.nukkit.potion.Effect;
 import cn.nukkit.utils.Config;
@@ -23,8 +21,9 @@ import java.util.HashMap;
 import java.util.List;
 
 public class PlayerEvents implements Listener {
-    private HashMap<String, HashMap<String, Long>> allUse = new HashMap<>();
-    private HashMap<String, Long> useTime = new HashMap<>();
+    private final HashMap<String, HashMap<String, Long>> allUse = new HashMap<>();
+    private final HashMap<String, Long> useTime = new HashMap<>();
+    private final HashMap<String, Long> lastInteractTime = new HashMap<>(); // 用于记录每个玩家的上一次交互时间
 
     @EventHandler
     public void onPlayerInteractEvent(PlayerInteractEvent event) {
@@ -32,6 +31,14 @@ public class PlayerEvents implements Listener {
         if (player == null) {
             return;
         }
+
+        // 检查防抖机制：确保每个玩家每秒只触发一次
+        long currentTime = System.currentTimeMillis();
+        long lastTime = lastInteractTime.getOrDefault(player.getName(), 0L);
+        if (currentTime - lastTime < 1000) { // 如果距离上次触发不足1秒
+            return; // 跳过处理
+        }
+        lastInteractTime.put(player.getName(), currentTime); // 更新最后交互时间
 
         // 物理触碰不应触发
         if (event.getAction().equals(PlayerInteractEvent.Action.PHYSICAL)) {
@@ -48,7 +55,7 @@ public class PlayerEvents implements Listener {
         }
         Config config = MagicItem.getInstance().getMainConfig();
         if (config.getList("RestrictedWorlds").contains(player.level.getName())) {
-            player.sendMessage("§e[§cMagicItem§e]§r §a这个世界不允许使用魔法物品！");
+            player.sendMessage(MagicItem.getI18n().tr(player.getLanguageCode(), "magicitem.usage.restrictedWorld"));
             return;
         }
         long time = System.currentTimeMillis();
@@ -78,7 +85,7 @@ public class PlayerEvents implements Listener {
             temp.put(tag.getString("yamlName"), time);
             this.allUse.put(player.getName(), temp);
         }
-        if (!tag.getList("pCmd").isEmpty()) {
+        if (tag.containsList("pCmd")) {
             List<StringTag> cmds = tag.getList("pCmd", StringTag.class).getAll();
             for (StringTag cmdTag : cmds) {
                 String cmd = cmdTag.data;
@@ -93,7 +100,7 @@ public class PlayerEvents implements Listener {
             item.setCount(1);
             player.getInventory().removeItem(item);
         }
-        if (!tag.getList("opCmd").isEmpty()) {
+        if (tag.containsList("opCmd")) {
             List<StringTag> cmds = tag.getList("opCmd", StringTag.class).getAll();
             for (StringTag cmdTag : cmds) {
                 String cmd = cmdTag.data;
@@ -104,14 +111,14 @@ public class PlayerEvents implements Listener {
                 }
             }
         }
-        if (!tag.getList("effect").isEmpty()) {
+        if (tag.containsList("effect")) {
             List<StringTag> args = (List<StringTag>) tag.getList("effect").getAll();
             for (StringTag arg : args) {
                 String[] effect = arg.parseValue().split(":");
                 player.addEffect(Effect.getEffect(Integer.parseInt(effect[0])).setAmplifier(Integer.parseInt(effect[1])).setDuration(Integer.parseInt(effect[2]) * 20));
             }
         }
-        if (!tag.getList("groupEffect").isEmpty()) {
+        if (tag.containsList("groupEffect")) {
             List<StringTag> args = (List<StringTag>) tag.getList("groupEffect").getAll();
             int distance = tag.getInt("distance");
             if (tag.getInt("actionEntity") == 0) {
@@ -151,6 +158,11 @@ public class PlayerEvents implements Listener {
     @EventHandler
     public void onPlayerJoinEvent(PlayerLocallyInitializedEvent event) {
         MagicItem.updateItem(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onPlayerQuitEvent(PlayerQuitEvent event) {
+        lastInteractTime.remove(event.getPlayer().getName());
     }
 
     private void runCommand(Player player, String cmd) {

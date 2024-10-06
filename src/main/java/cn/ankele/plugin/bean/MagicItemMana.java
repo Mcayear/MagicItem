@@ -1,13 +1,7 @@
 package cn.ankele.plugin.bean;
 
-import RcRPG.AttrManager.AttrNameParse;
-import RcRPG.AttrManager.PlayerAttr;
 import cn.ankele.plugin.MagicItem;
 import cn.nukkit.nbt.tag.CompoundTag;
-import cn.nukkit.nbt.tag.FloatTag;
-import cn.nukkit.nbt.tag.IntTag;
-import cn.nukkit.nbt.tag.ListTag;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;

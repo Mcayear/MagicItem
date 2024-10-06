@@ -37,6 +37,7 @@ public class MagicItem extends PluginBase {
         //register the command of plugin
         this.saveResource("config.yml");
     }
+
     @Override
     public void onEnable() {
         getLogger().info("魔法物品已加载.....");
@@ -66,9 +67,11 @@ public class MagicItem extends PluginBase {
         getServer().getCommandMap().register("", new BaseCommand("mi"));
         getServer().getPluginManager().registerEvents(new PlayerEvents(), this);
     }
+
     public Config getMainConfig() {
         return new Config(MagicItem.getInstance().getDataFolder() + "/config.yml", 2);
     }
+
     public void onDisable() {
         super.onDisable();
     }
@@ -81,7 +84,7 @@ public class MagicItem extends PluginBase {
             isToNamespace = getMainConfig().getBoolean("updateItemIdToSpacename");
         }
         for (String itemName : items_) {
-            Config cfg = new Config(getItemFile() + "/" + itemName.toLowerCase() + ".yml", 2);
+            Config cfg = new Config(getItemFile() + File.separator + itemName.toLowerCase() + ".yml", 2);
             if (isToNamespace) {
                 Item item = Item.fromString(cfg.getString("物品ID"));
                 cfg.set("物品ID", item.getNamespaceId());
@@ -100,7 +103,7 @@ public class MagicItem extends PluginBase {
     public void initOther() {
         others.clear();
         Config config = new Config();
-        config.load(getOtherFile() + "/items.yml", 2);
+        config.load(getOtherFile() + File.separator + "items.yml", 2);
         others = config.getRootSection();
     }
 
@@ -117,19 +120,19 @@ public class MagicItem extends PluginBase {
     }
 
     public File getItemFile() {
-        return new File(getDataFolder() + "/items");
+        return new File(getDataFolder() + File.separator + "items");
     }
 
     public File getSynFile() {
-        return new File(getDataFolder() + "/syns");
+        return new File(getDataFolder() + File.separator + "syns");
     }
 
     public File getOtherFile() {
-        return new File(getDataFolder() + "/other");
+        return new File(getDataFolder() + File.separator + "other");
     }
 
     public File getForgingFile() {
-        return new File(getDataFolder() + "/forging");
+        return new File(getDataFolder() + File.separator + "forging");
     }
 
     public static LinkedHashMap<String, ItemBean> getItemsMap() {
@@ -142,7 +145,6 @@ public class MagicItem extends PluginBase {
         }
 
         PlayerInventory bag = player.getInventory();
-        LinkedHashMap<String, ItemBean> items2 = getItemsMap();
 
         for (int num = 0; num < bag.getSize(); num++) {
             Item item = bag.getItem(num);
@@ -152,26 +154,26 @@ public class MagicItem extends PluginBase {
             }
 
             CompoundTag tag = item.getNamedTag();
-            if (tag.getString("yamlName").isEmpty()) {
+            if (!tag.containsString("yamlName")) {
                 continue;
             }
-            if (tag.getString("sell").isEmpty()) {
+            if (!tag.containsString("sell")) {
                 continue;
             }
 
             String yamlName = tag.getString("yamlName");
-            if (!items2.containsKey(yamlName)) {
+            if (!items.containsKey(yamlName)) {
                 bag.remove(item);
                 player.sendMessage("§e魔法物品配置文件不存在...已自动删除");
                 continue;
             }
-            if (!items2.get(yamlName).attr.isEmpty()) {
+            if (!items.get(yamlName).attr.isEmpty()) {
                 continue;
             }
 
             int qualityIndex = tag.getInt("quality");
 
-            Item newItem = BaseCommand.createItem(items2.get(yamlName), qualityIndex);
+            Item newItem = BaseCommand.createItem(items.get(yamlName), qualityIndex);
             if (!item.equals(newItem)) {
                 newItem.setCount(item.count);
                 bag.remove(item);

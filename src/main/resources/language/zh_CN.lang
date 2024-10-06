@@ -2,6 +2,7 @@ magicitem.usage.permission=§c权限不足。
 magicitem.usage.cooldown=§7[§f魔法物品§7] §a冷却中...剩余§e {%0}§a 秒
 magicitem.usage.showItem.cooldown=§7[§f物品展示§7] §a冷却中...剩余§e {%0}§a 秒
 magicitem.usage.showItem=§7[§f物品展示§7] §6玩家§a {%0} §6手里拿的是§r {%1}
+magicitem.usage.restrictedWorld=§7[§f魔法物品§7]§r §c这个世界不允许使用魔法物品！
 
 magicitem.commands.help=§7------ MagicItem Help ------
 magicitem.commands.reload.help=§2/mi reload:§f 重载配置文件

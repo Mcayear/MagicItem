@@ -2,6 +2,7 @@ magicitem.usage.permission=§cPermission denied.
 magicitem.usage.cooldown=§7[§fMagicItem§7] §aCooling down...§e {%0}§a seconds remaining
 magicitem.usage.showItem.cooldown=§7[§fItemDisplay§7] §aCooling down...§e {%0}§a seconds remaining
 magicitem.usage.showItem=§7[§fItemDisplay§7] §6Player§a {%0} §6is holding§r {%1}
+magicitem.usage.restrictedWorld=§7[§fMagicItem§7]§r §cMagicItem are not allowed in this world!
 
 magicitem.commands.help=§7------ MagicItem Help ------
 magicitem.commands.reload.help=§2/mi reload:§f Reload the configuration file

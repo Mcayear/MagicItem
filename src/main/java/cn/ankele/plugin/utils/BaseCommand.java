@@ -423,8 +423,11 @@ public class BaseCommand extends Command {
                 if (!this.useTime.containsKey(player.getName())) {
                     this.useTime.put(player.getName(), time);
                 } else if ((time - this.useTime.get(player.getName())) / 1000 < ((long) mainConfig.getInt("ItemDisplayCooldown"))) {
-                    long s = ((long) mainConfig.getInt("ItemDisplayCooldown")) - ((time - this.useTime.get(player.getName())) / 1000);
-                    player.sendMessage(MagicItem.getI18n().tr(player.getLanguageCode(), "magicitem.usage.showItem.cooldown", s));
+                    player.sendMessage(MagicItem.getI18n().tr(
+                            player.getLanguageCode(),
+                            "magicitem.usage.showItem.cooldown",
+                            ((long) mainConfig.getInt("ItemDisplayCooldown")) - ((time - this.useTime.get(player.getName())) / 1000)
+                            ));
                     return false;
                 } else {
                     this.useTime.put(player.getName(), time);
