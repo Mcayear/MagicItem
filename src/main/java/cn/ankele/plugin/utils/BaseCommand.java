@@ -427,7 +427,7 @@ public class BaseCommand extends Command {
                             player.getLanguageCode(),
                             "magicitem.usage.showItem.cooldown",
                             ((long) mainConfig.getInt("ItemDisplayCooldown")) - ((time - this.useTime.get(player.getName())) / 1000)
-                            ));
+                    ));
                     return false;
                 } else {
                     this.useTime.put(player.getName(), time);
@@ -454,16 +454,15 @@ public class BaseCommand extends Command {
                 double total = 0.0d;
                 for (int num = 0; num < bag.getSize(); num++) {
                     Item bagItem = bag.getItem(num);
-                    if (!bagItem.hasCompoundTag()) {
-                        continue;
-                    }
-                    if (MagicItem.getItemsMap().containsValue(bagItem)) {
-                        double sell = bagItem.getNamedTag().getDouble("sell");
-                        if (sell != 0.0d) {
-                            bag.removeItem(new Item[]{bagItem});
-                            EconomyAPI.getInstance().addMoney(player, ((double) bagItem.count) * sell);
-                            total += ((double) bagItem.count) * sell;
-                        }
+                    if (!bagItem.hasCompoundTag()) continue;
+                    String yamlName = bagItem.getNamedTag().getString("yamlName");
+                    if (yamlName.isEmpty()) continue;
+                    if (!MagicItem.getItemsMap().containsKey(yamlName)) continue;
+                    double sell = bagItem.getNamedTag().getDouble("sell");
+                    if (sell != 0.0d) {
+                        bag.removeItem(bagItem);
+                        EconomyAPI.getInstance().addMoney(player, ((double) bagItem.count) * sell);
+                        total += ((double) bagItem.count) * sell;
                     }
                 }
                 player.sendMessage("§a回收完毕，获得 " + total + "元");
@@ -484,6 +483,7 @@ public class BaseCommand extends Command {
 
     /**
      * 创建物品
+     *
      * @param itemBean
      * @param qualityIndex 这里是品质的索引从 0 开始
      * @return
@@ -492,7 +492,7 @@ public class BaseCommand extends Command {
 
         Item item = Item.fromString(itemBean.getItemId());
 
-        if (item.getId() == 0) {
+        if (item.getId() == Item.AIR_ITEM.getId()) {
             MagicItem.getInstance().getLogger().error("出问题的是:" + itemBean.getYamlName() + "\n无法获取物品！ID为：" + itemBean.getItemId());
             return Item.AIR_ITEM;
         }

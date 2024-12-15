@@ -50,7 +50,7 @@ public class PlayerEvents implements Listener {
             return;
         }
         CompoundTag tag = item.getNamedTag();
-        if (tag.getString("yamlName").isEmpty()) {
+        if (!tag.containsString("yamlName")) {
             return;
         }
         Config config = MagicItem.getInstance().getMainConfig();
