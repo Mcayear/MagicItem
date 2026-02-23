@@ -39,7 +39,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.24</version>
+            <version>1.18.30</version>
             <scope>compile</scope>
         </dependency>
 
@@ -59,9 +59,9 @@
         <dependency>
             <groupId>RcRPG.RcRPGMain</groupId>
             <artifactId>RcRPG</artifactId>
-            <version>1.0.7</version>
+            <version>1.1.9</version>
             <scope>system</scope>
-            <systemPath>${pom.basedir}/lib/RcRPG-1.0.7-MOT.jar</systemPath>
+            <systemPath>${pom.basedir}/lib/RcRPG-1.1.9-MOT.jar</systemPath>
         </dependency>
     </dependencies>
 

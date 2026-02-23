@@ -157,7 +157,7 @@ public class MagicItem extends PluginBase {
             if (!tag.containsString("yamlName")) {
                 continue;
             }
-            if (!tag.containsString("sell")) {
+            if (!tag.containsDouble("sell")) {
                 continue;
             }
 
